@@ -85,12 +85,24 @@ export interface ExecOptions {
   login?: boolean;
   /** Wrap the command in a PTY (§9.14). */
   pty?: boolean;
+  /**
+   * Redirect the in-VM command's stdin from /dev/null (default true).
+   *
+   * VERIFIED LIVE (§9.15): `sbx exec` keeps the VM process's stdin open even when
+   * the host closes its end, so a headless agent like `codex exec` blocks on
+   * "Reading additional input from stdin..." forever. Redirecting stdin from
+   * /dev/null IN the VM gives it an immediate EOF. Closing host stdin (the
+   * provider also does that) is necessary but NOT sufficient on its own. Ignored
+   * under `pty` (the TTY supplies stdin).
+   */
+  stdinFromNull?: boolean;
 }
 
 /**
- * `sbx exec <name> -- bash -c '<command>'`. `command` is a shell string (build
- * it from an agent argv with shellJoin). No `-i`: stdin stays closed (§9.15).
- * The `--` stops sbx flag parsing so the command's own flags pass through.
+ * `sbx exec <name> -- bash -c '<command> < /dev/null'`. `command` is a shell
+ * string (build it from an agent argv with shellJoin). No `-i`, and stdin is
+ * redirected from /dev/null in-VM so headless agents can't hang (§9.15). The
+ * `--` stops sbx flag parsing so the command's own flags pass through.
  */
 export function execArgv(name: string, command: string, opts: ExecOptions = {}): string[] {
   const argv = ["exec"];
@@ -100,7 +112,14 @@ export function execArgv(name: string, command: string, opts: ExecOptions = {}):
   if (opts.workdir !== undefined) {
     argv.push("-w", opts.workdir);
   }
-  const inner = opts.pty === true ? ptyCommand(command) : command;
+  let inner: string;
+  if (opts.pty === true) {
+    inner = ptyCommand(command);
+  } else if (opts.stdinFromNull === false) {
+    inner = command;
+  } else {
+    inner = `${command} < /dev/null`;
+  }
   argv.push(name, "--", "bash", opts.login === true ? "-lc" : "-c", inner);
   return argv;
 }

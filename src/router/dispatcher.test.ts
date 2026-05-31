@@ -261,6 +261,13 @@ describe("dispatchTurn — failure & skip", () => {
     expect(b.sink.records.map((r) => r.kind)).toContain("turn.abandoned");
   });
 
+  it("on !ok WITH an error message, relays the agent's error (e.g. usage limit)", async () => {
+    const b = build({ result: { finalText: "You've hit your usage limit.", ok: false } });
+    await b.dispatcher.dispatchTurn(trigger);
+    expect(b.platform.replies[0]).toBe("You've hit your usage limit.");
+    expect(b.trace).not.toContain("write:transcript.jsonl"); // still not persisted (re-feed)
+  });
+
   it("on empty delta: skips exec entirely and ✅s", async () => {
     const b = build({
       existing: [SANDBOX],

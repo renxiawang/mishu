@@ -74,8 +74,10 @@ describe("parseCodexResult", () => {
     expect(parseCodexResult("")).toEqual({ finalText: "", ok: false });
   });
 
-  it("returns ok=false when the stream errors before a final message", () => {
-    expect(parseCodexResult(errorStream)).toEqual({ finalText: "", ok: false });
+  it("surfaces the codex error message on a failed turn (real fixture)", () => {
+    const result = parseCodexResult(errorStream);
+    expect(result.ok).toBe(false);
+    expect(result.finalText).toContain("usage limit"); // relayed to the user
   });
 
   it("tolerates interleaved non-JSON progress lines", () => {
@@ -99,8 +101,8 @@ describe("parseSessionId", () => {
     expect(parseSessionId(stream)).toBe("7f3e9c21-4b6a-4c2d-9e1f-2a3b4c5d6e7f");
   });
 
-  it("finds the id even on an errored turn (session was still created)", () => {
-    expect(parseSessionId(errorStream)).toBe("7f3e9c21-4b6a-4c2d-9e1f-2a3b4c5d6e7f");
+  it("finds the id even on an errored turn (real thread.started, session still created)", () => {
+    expect(parseSessionId(errorStream)).toBe("019e800c-958e-79e0-b7c9-9a5502563f58");
   });
 
   it("returns null when no id is present", () => {

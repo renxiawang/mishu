@@ -91,8 +91,15 @@ Invariants — do not break these:
 
 ## 7. Codex / exec gotchas (§4.5, §9.14, §9.15) — `src/sandbox/sbx-argv.ts`, `backend/codex.ts`
 
-- Wrap exec in `bash -c` (`sbx exec` sources no env). **Close stdin** (never pass `-i`) and **capture
-  stderr** too. **Never `--ephemeral`** (breaks resume).
+- Wrap exec in `bash -c` (`sbx exec` sources no env). **Redirect the agent's stdin from `/dev/null`
+  IN the VM** (`<command> < /dev/null`) — verified live: `sbx exec` keeps the VM process's stdin open
+  even when the host closes its end, so codex otherwise hangs on "Reading additional input from
+  stdin..." forever (§9.15). Never pass `-i`; **capture stderr** too. **Never `--ephemeral`** (breaks
+  resume). The `--json` stream's `thread.started` event carries the session id (`thread_id`).
+- **Provisioning (§4.3):** with `--clone`, `/home/agent/workspace` is empty under `sbx exec`; the repo
+  is a read-only mount at `/run/sandbox/source` (a valid git repo) plus a git daemon. A provision step
+  (the dispatcher's `provisionScript`) must clone it into a writable dir, point `origin` at the real
+  remote, and seed a non-base branch before the agent works.
 - Keep Codex's native sandbox ON: `-c sandbox_mode=workspace-write -c approval_policy=never` (set via
   `-c` because `resume` lacks `-s`). This is defense-in-depth against prompt injection — Slack content
   is untrusted (§5).

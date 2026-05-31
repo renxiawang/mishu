@@ -75,7 +75,14 @@ describe("exec — drain, stdin close, streaming (§4.9/§9.15)", () => {
     });
 
     expect(result).toEqual({ stdout: "Fixed the bug", stderr: "progress\n", exitCode: 0 });
-    expect(recorded).toEqual(["exec", handle.name, "--", "bash", "-c", "codex exec 'fix the bug'"]);
+    expect(recorded).toEqual([
+      "exec",
+      handle.name,
+      "--",
+      "bash",
+      "-c",
+      "codex exec 'fix the bug' < /dev/null",
+    ]);
     expect(recorded).not.toContain("-i");
     expect(stdin?.ended).toBe(true);
     expect(chunks).toEqual(["stdout:Fixed ", "stdout:the bug", "stderr:progress\n"]);
@@ -138,7 +145,7 @@ describe("execShell + SandboxFsLike", () => {
       "--",
       "bash",
       "-c",
-      "find $HOME -name '*.jsonl'",
+      "find $HOME -name '*.jsonl' < /dev/null",
     ]);
   });
 
