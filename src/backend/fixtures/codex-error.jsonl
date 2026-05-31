@@ -1,2 +1,4 @@
-{"type":"thread.started","thread_id":"7f3e9c21-4b6a-4c2d-9e1f-2a3b4c5d6e7f"}
-{"type":"error","message":"stream disconnected before the model finished"}
+{"type":"thread.started","thread_id":"019e800c-958e-79e0-b7c9-9a5502563f58"}
+{"type":"turn.started"}
+{"type":"error","message":"You've hit your usage limit. Upgrade to Plus to continue using Codex (https://chatgpt.com/explore/plus), or try again at Jun 2nd, 2026 11:49 AM."}
+{"type":"turn.failed","error":{"message":"You've hit your usage limit. Upgrade to Plus to continue using Codex (https://chatgpt.com/explore/plus), or try again at Jun 2nd, 2026 11:49 AM."}}

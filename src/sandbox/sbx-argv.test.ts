@@ -55,16 +55,20 @@ describe("createArgv", () => {
 });
 
 describe("execArgv", () => {
-  it("wraps in `bash -c`, uses `--`, and never passes -i (§4.5/§9.15)", () => {
+  it("wraps in `bash -c`, uses `--`, redirects stdin from /dev/null, no -i (§4.5/§9.15)", () => {
     expect(execArgv("box", "codex exec --json")).toEqual([
       "exec",
       "box",
       "--",
       "bash",
       "-c",
-      "codex exec --json",
+      "codex exec --json < /dev/null",
     ]);
     expect(execArgv("box", "x")).not.toContain("-i");
+  });
+
+  it("stdinFromNull:false omits the /dev/null redirect", () => {
+    expect(execArgv("box", "cmd", { stdinFromNull: false }).at(-1)).toBe("cmd");
   });
 
   it("supports login shell, workdir, env, and the PTY mitigation (§9.14)", () => {
@@ -77,7 +81,7 @@ describe("execArgv", () => {
       "--",
       "bash",
       "-c",
-      "cmd",
+      "cmd < /dev/null",
     ]);
     expect(execArgv("box", "cmd", { env: { FOO: "bar" } })).toEqual([
       "exec",
@@ -87,20 +91,21 @@ describe("execArgv", () => {
       "--",
       "bash",
       "-c",
-      "cmd",
+      "cmd < /dev/null",
     ]);
+    // Under pty the TTY supplies stdin — no /dev/null redirect.
     const pty = execArgv("box", "codex exec", { pty: true });
     expect(pty[pty.length - 1]).toBe(ptyCommand("codex exec"));
   });
 
-  it("execAgentArgv quotes an agent argv into the bash -c string", () => {
+  it("execAgentArgv quotes an agent argv into the bash -c string (+ stdin redirect)", () => {
     expect(execAgentArgv("box", ["codex", "exec", "fix the bug"])).toEqual([
       "exec",
       "box",
       "--",
       "bash",
       "-c",
-      "codex exec 'fix the bug'",
+      "codex exec 'fix the bug' < /dev/null",
     ]);
   });
 });

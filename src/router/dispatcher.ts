@@ -145,7 +145,11 @@ export class Dispatcher {
           exitCode,
           stderrSnippet: stderr.slice(0, 500),
         });
-        await this.relay(thread, this.failureMessage);
+        // Relay the agent's own error (e.g. a usage limit) when it gave one,
+        // else a generic message. Either way the transcript is NOT appended, so
+        // the request re-feeds on the next mention (§4.6).
+        const reply = result.finalText.trim() !== "" ? result.finalText : this.failureMessage;
+        await this.relay(thread, reply);
         await this.swapReaction(trigger, false);
         return { ok: false };
       }

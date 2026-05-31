@@ -6,12 +6,15 @@ import type { CodingBackend, TurnResult } from "./index.js";
  * Everything here is pure (off captured bytes) except captureSessionId, whose
  * one shell call is injected so the rest stays unit-testable.
  *
- * Verified against codex 0.135.0:
+ * Verified against codex 0.135.0 (host) and run live on 0.130.0 (in an sbx VM):
  *  - `codex exec [--json] [-c k=v]... [-- PROMPT]`
  *  - `codex exec resume [--json] [-c k=v]... [-- SESSION_ID PROMPT]`
  *  - `resume` has `-c` and `--json` but NOT `-s/--sandbox`, so we set the sandbox
  *    mode + approval policy via `-c` uniformly (works on both subcommands).
- *  - NEVER `--ephemeral` (breaks resume, §9.15); no `-i` (provider closes stdin).
+ *  - NEVER `--ephemeral` (breaks resume). The `--json` stream's `thread.started`
+ *    event carries `thread_id` (= the session id; parseSessionId reads it live).
+ *  - codex blocks on stdin headlessly; the provider redirects its stdin from
+ *    /dev/null IN the VM (§9.15) — verified live.
  */
 
 export const CODEX_HOME = "~/.codex";
@@ -84,17 +87,34 @@ function extractAssistantText(event: Record<string, unknown>): string | null {
   return null;
 }
 
+/** Error text from an `error` / `turn.failed` event (real shapes, verified live). */
+function extractErrorMessage(event: Record<string, unknown>): string | null {
+  const type = asString(event.type) ?? "";
+  if (
+    type !== "error" &&
+    type !== "turn.failed" &&
+    !type.includes("error") &&
+    !type.includes("failed")
+  ) {
+    return null;
+  }
+  return asString(event.message) ?? (isRecord(event.error) ? asString(event.error.message) : null);
+}
+
 /**
  * Interpret the captured `--json` stream into the result to relay. Tolerant of
  * several event shapes (the schema moves between versions) and of non-JSON
  * progress lines. Empty output -> {"", false}: the §9.14 headless regression
  * (argv -> 0 bytes, exit 0) surfaces as a failed turn, not a silent empty reply.
+ * On a failed turn the codex error message is relayed (e.g. a usage limit),
+ * still with ok=false.
  */
 export function parseCodexResult(captured: string): TurnResult {
   if (captured.trim() === "") {
     return { finalText: "", ok: false };
   }
   let finalText = "";
+  let errorText = "";
   for (const line of captured.split("\n")) {
     if (line.trim() === "") {
       continue;
@@ -112,8 +132,15 @@ export function parseCodexResult(captured: string): TurnResult {
     if (text !== null && text !== "") {
       finalText = text;
     }
+    const error = extractErrorMessage(event);
+    if (error !== null && error !== "") {
+      errorText = error;
+    }
   }
-  return { finalText, ok: finalText.trim() !== "" };
+  if (finalText.trim() !== "") {
+    return { finalText, ok: true };
+  }
+  return { finalText: errorText, ok: false };
 }
 
 function findSessionId(record: Record<string, unknown>): string | null {
