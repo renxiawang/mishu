@@ -173,6 +173,18 @@ describe("ls + parseLsJson", () => {
     expect(parseLsJson("")).toEqual([]);
     expect(parseLsJson("   \n")).toEqual([]);
   });
+
+  it("tolerates sbx info lines prepended before the JSON (verified live)", () => {
+    const noisy =
+      'Starting sandboxd daemon...\nDaemon started.\n{"sandboxes":[{"name":"t-C0-1.2"}]}';
+    expect(parseLsJson(noisy)).toEqual([
+      { name: "t-C0-1.2", status: undefined, agent: undefined, workspace: undefined },
+    ]);
+  });
+
+  it("returns [] (never throws) on output with no JSON", () => {
+    expect(parseLsJson("Starting sandboxd daemon...\nno json here")).toEqual([]);
+  });
 });
 
 describe("cp / stop / rm", () => {

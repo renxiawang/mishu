@@ -157,16 +157,25 @@ function strOrUndef(value: unknown): string | undefined {
 }
 
 /**
- * Parse `sbx ls --json`. The exact field names are confirmed live (§9); this is
- * tolerant of both a top-level array and a `{ sandboxes: [...] }` wrapper, and
- * skips entries without a string `name`.
+ * Parse `sbx ls --json`. Tolerant of both a top-level array and a
+ * `{ sandboxes: [...] }` wrapper, and skips entries without a string `name`.
+ *
+ * VERIFIED LIVE: sbx prepends human-readable lines (e.g. "Starting sandboxd
+ * daemon...") to stdout before the JSON when it auto-starts the daemon, so we
+ * parse from the first `{`/`[` and never throw — a malformed list yields [].
  */
 export function parseLsJson(stdout: string): SbxListEntry[] {
   const trimmed = stdout.trim();
-  if (trimmed === "") {
+  const start = trimmed.search(/[[{]/);
+  if (start < 0) {
     return [];
   }
-  const data: unknown = JSON.parse(trimmed);
+  let data: unknown;
+  try {
+    data = JSON.parse(trimmed.slice(start));
+  } catch {
+    return [];
+  }
   const items: unknown[] = Array.isArray(data)
     ? data
     : isRecord(data) && Array.isArray(data.sandboxes)
