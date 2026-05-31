@@ -18,13 +18,19 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "check": "biome check . && tsc --noEmit",
-    "check:fix": "biome check --write . && tsc --noEmit"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:cov": "vitest run --coverage",
+    "test:live": "vitest run --config vitest.live.config.ts",
+    "check": "biome check --error-on-warnings . && tsc --noEmit && vitest run",
+    "check:fix": "biome check --write --error-on-warnings . && tsc --noEmit && vitest run"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.0",
     "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.7",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.7"
   }
 }
