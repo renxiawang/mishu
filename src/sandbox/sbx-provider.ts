@@ -143,7 +143,10 @@ export class SbxProvider implements SandboxProvider {
 
   async homeDir(handle: SandboxHandle): Promise<string> {
     const { stdout } = await this.execShell(handle, 'printf %s "$HOME"');
-    return stdout.trim() || "/root";
+    // Defensive: take the last line in case sbx ever prefixes a start-up info
+    // line on stdout (it normally routes those to stderr).
+    const lines = stdout.trim().split("\n");
+    return (lines[lines.length - 1] ?? "").trim() || "/root";
   }
 
   /** File contents, or null if the file does not exist (non-zero `cat` exit). */
