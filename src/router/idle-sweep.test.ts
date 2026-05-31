@@ -90,8 +90,8 @@ describe("IdleSweeper.sweepOnce", () => {
 
   it("stops idle threads, keeps fresh ones, and ignores foreign sandboxes", async () => {
     const handles: SandboxHandle[] = [
-      { name: "t-C0ABCDEF-1748600000.000000" }, // idle (100s ago)
-      { name: "t-C0FRESH-1748600099.000000" }, // fresh (1s ago)
+      { name: "t-C0ABCDEF-1748600000-000000" }, // idle (100s ago)
+      { name: "t-C0FRESH-1748600099-000000" }, // fresh (1s ago)
       { name: "_login-tmp" }, // foreign — never touch
     ];
     const sandbox = new FakeSweepSandbox(handles);
@@ -104,8 +104,8 @@ describe("IdleSweeper.sweepOnce", () => {
     const sweeper = new IdleSweeper({ sandbox, platform, idleMs: 10_000, now: () => NOW });
 
     const { stopped } = await sweeper.sweepOnce();
-    expect(stopped).toEqual(["t-C0ABCDEF-1748600000.000000"]);
-    expect(sandbox.stopped).toEqual(["t-C0ABCDEF-1748600000.000000"]);
+    expect(stopped).toEqual(["t-C0ABCDEF-1748600000-000000"]);
+    expect(sandbox.stopped).toEqual(["t-C0ABCDEF-1748600000-000000"]);
   });
 
   it("reverses a hash-named sandbox via ~/.agent-state/thread", async () => {

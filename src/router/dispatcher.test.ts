@@ -12,7 +12,7 @@ const trigger: Mention = {
   user: "U1",
   text: "@bot fix the bug",
 };
-const SANDBOX = "t-C0ABCDEF-1748600000.100000";
+const SANDBOX = "t-C0ABCDEF-1748600000-100000"; // chooseSandboxName encodes '.' as '-'
 const HOME = "/home/agent";
 
 class FakePlatform {

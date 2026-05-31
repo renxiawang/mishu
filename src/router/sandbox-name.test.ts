@@ -17,21 +17,21 @@ const SAMPLES: ThreadId[] = [
 ];
 
 describe("sandboxName", () => {
-  it("encodes as t-<channel>-<thread_ts>, keeping the '.' (spec §4.1)", () => {
+  it("encodes as t-<channel>-<secs>-<micros>, with '.' -> '-' (hostname-safe, §4.1)", () => {
     expect(sandboxName({ channel: "C0ABCDEF", threadTs: "1748600000.123456" })).toBe(
-      "t-C0ABCDEF-1748600000.123456",
+      "t-C0ABCDEF-1748600000-123456",
     );
   });
 
-  it("NEVER substitutes '.' -> '_' (the spec's charset bug)", () => {
+  it("emits NEITHER '_' (illegal --name) NOR '.' (illegal hostname) — both verified live", () => {
     for (const thread of SAMPLES) {
       const name = sandboxName(thread);
       expect(name).not.toContain("_");
-      expect(name).toContain(".");
+      expect(name).not.toContain(".");
     }
   });
 
-  it("only ever emits sbx-legal characters [A-Za-z0-9.+-]", () => {
+  it("only ever emits hostname-safe characters [A-Za-z0-9-]", () => {
     for (const thread of SAMPLES) {
       expect(isCharsetSafe(sandboxName(thread))).toBe(true);
     }
@@ -58,7 +58,8 @@ describe("parseSandboxName (round-trip + namespacing)", () => {
       "t-C0ABCDEF", // no thread_ts
       "t-C0ABCDEF-notats", // thread_ts not numeric
       "t-C0ABCDEF-1748600000", // missing fractional part
-      "C0ABCDEF-1748600000.1", // missing prefix
+      "t-C0ABCDEF-1748600000.123456", // old dotted form (no longer produced)
+      "C0ABCDEF-1748600000-1", // missing prefix
     ]) {
       expect(parseSandboxName(name)).toBeNull();
     }
@@ -116,12 +117,13 @@ describe("chooseSandboxName", () => {
 describe("isHashName / isCharsetSafe", () => {
   it("distinguishes hash names from plain names", () => {
     expect(isHashName("t-0123456789abcdef")).toBe(true);
-    expect(isHashName("t-C0ABCDEF-1748600000.123456")).toBe(false);
+    expect(isHashName("t-C0ABCDEF-1748600000-123456")).toBe(false);
     expect(isHashName("t-0123456789ABCDEF")).toBe(false); // uppercase != hex digest
   });
 
-  it("flags underscores as charset-unsafe", () => {
-    expect(isCharsetSafe("t-C0ABCDEF-1748600000_123456")).toBe(false);
-    expect(isCharsetSafe("t-C0ABCDEF-1748600000.123456")).toBe(true);
+  it("flags BOTH underscores and periods as unsafe (hostname rules)", () => {
+    expect(isCharsetSafe("t-C0ABCDEF-1748600000_123456")).toBe(false); // illegal --name
+    expect(isCharsetSafe("t-C0ABCDEF-1748600000.123456")).toBe(false); // illegal hostname
+    expect(isCharsetSafe("t-C0ABCDEF-1748600000-123456")).toBe(true);
   });
 });
