@@ -56,12 +56,18 @@ export class SlackAdapter implements PlatformAdapter {
     this.handler = handler;
   }
 
-  /** Resolve the bot's identity, wire the listener, and open the socket. */
-  async start(): Promise<void> {
+  /** Resolve (and cache) the bot's own user id via auth.test (§4.2 self-filtering). */
+  async whoAmI(): Promise<string | undefined> {
     if (this.botUserId === undefined) {
       const auth = await this.web.auth.test();
       this.botUserId = typeof auth.user_id === "string" ? auth.user_id : undefined;
     }
+    return this.botUserId;
+  }
+
+  /** Resolve the bot's identity, wire the listener, and open the socket. */
+  async start(): Promise<void> {
+    await this.whoAmI();
     this.socket.on("app_mention", (args: SocketModeEventArgs) => {
       // ACK at the WebSocket layer on receipt — never block the ~3s deadline (§4.1).
       void args.ack();

@@ -14,6 +14,7 @@ import {
   parseLsJson,
   remotePath,
   rmArgv,
+  secretLsArgv,
   shellQuote,
   stopArgv,
 } from "./sbx-argv.js";
@@ -130,6 +131,12 @@ export class SbxProvider implements SandboxProvider {
   async list(): Promise<SandboxHandle[]> {
     const { stdout } = await this.runOrThrow(lsArgv(), "ls");
     return parseLsJson(stdout).map((entry) => ({ name: entry.name }));
+  }
+
+  /** Raw `sbx secret ls` output — drives the onboarding credential check (§4.8). */
+  async secretLs(): Promise<string> {
+    const { stdout } = await this.runOrThrow(secretLsArgv(), "secret ls");
+    return stdout;
   }
 
   // --- SandboxFsLike (structural) ---------------------------------------
