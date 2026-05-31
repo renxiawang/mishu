@@ -27,6 +27,14 @@ export interface CodingBackend {
   /** After a fresh turn, read the new session's id (Codex: newest rollout filename) (§4.5). */
   captureSessionId(handle: SandboxHandle): Promise<string>;
 
+  /**
+   * OPTIONAL: extract the new session's id straight from the captured turn-1
+   * stream (e.g. Codex prints it as a thread/session event) — pure and cheaper
+   * than {@link captureSessionId}. The dispatcher tries this first and falls
+   * back to captureSessionId (§4.5).
+   */
+  parseSessionId?(captured: string): string | null;
+
   /** OPTIONAL: normalized events to enrich logs; router degrades to raw bytes if absent. */
   events?(captured: string): unknown[];
 }
