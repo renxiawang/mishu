@@ -1,0 +1,30 @@
+{
+  "name": "slack-coding-agent",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Slack-native coding agent — a router that delegates Slack threads to a coding-agent CLI in an isolated sandbox.",
+  "license": "MIT",
+  "bin": {
+    "slack-coding-agent": "dist/cli/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "check": "biome check . && tsc --noEmit",
+    "check:fix": "biome check --write . && tsc --noEmit"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
