@@ -11,6 +11,7 @@ import { createWriteStream, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { CodexBackend } from "../backend/codex.js";
 import { SlackAdapter } from "../platform/slack.js";
+import { IdleSweeper } from "../router/idle-sweep.js";
 import { Dispatcher, Router } from "../router/index.js";
 import { createJsonlSink, type LogLevel, type LogSink } from "../router/log.js";
 import { SbxProvider } from "../sandbox/sbx-provider.js";
@@ -73,6 +74,10 @@ async function run(args: Args): Promise<void> {
     botUser,
   });
   const router = new Router(platform, dispatcher, { logSink });
+
+  // Idle eviction: sbx stop (lossless) sandboxes whose threads have gone quiet
+  // (§4.6). Sweep hourly; the router never auto-`rm`s.
+  new IdleSweeper({ sandbox: provider, platform, logSink }).start(60 * 60 * 1000);
 
   router.start();
   await platform.start();
