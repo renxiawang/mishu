@@ -1,56 +1,86 @@
-# Slack Coding Agent — starter
+# Slack Coding Agent
 
-A **standalone** TypeScript scaffold for the router in the design spec: mention the bot in a
-Slack thread → it works in an isolated sandbox → it reports back in-thread. Independent project;
-conventions are **learned from pi-mom, but no code is shared or imported** (spec §10).
+Mention the bot in a Slack thread → a coding-agent CLI (Codex) does the work in an isolated `sbx`
+microVM with your repo + credentials → it reports back **in the same thread**. The router is pure
+plumbing (no LLM); every thread maps 1:1 to a sandbox and a coding-agent session. Standalone TypeScript
+project; conventions learned from pi-mom but **no code shared** (spec §10).
+
+Design spec: `.context/attachments/2PRioL/slack-coding-agent-spec.md`. Working in the repo? Read
+[AGENTS.md](./AGENTS.md) first.
+
+## Architecture (three seams + a stateless router, spec §3)
+
+```
+Slack ⇄ PlatformAdapter ⇄  ROUTER (no durable state, NOT an LLM)  ⇄ SandboxProvider ⇄ microVM
+                                                                          └ CodingBackend (Codex CLI)
+```
+
+The router owns only transient in-memory coordination (the idle/running/pending lock + ts-dedupe).
+Per-thread durable state (the seen-message ledger + session id) lives **in each sandbox** under
+`~/.agent-state/`; discovery is `sbx ls` + deterministic naming. Durability is the **PR + the Slack
+thread**, not a state store.
 
 ## Prerequisites
 
-- Node **≥ 22** (the project is ESM / `NodeNext`).
+- **Node ≥ 22** (ESM / NodeNext).
+- **Docker Desktop** running + **`sbx` v0.31.1** (the daemon: `sbx daemon start`).
+- A coding-agent credential in sbx (the bot gates on this and walks you through it): for Codex,
+  `sbx secret set -g openai --oauth`.
+- A **Slack app with Socket Mode** enabled — bot scopes `app_mentions:read`, `chat:write`,
+  `reactions:write`, `channels:history` (+`groups:history` for private), `files:write`, `users:read`;
+  an app-level token (`xapp-…`, `connections:write`) and a bot token (`xoxb-…`).
+- A **target git repo** to operate on (the `--clone` seed).
 
-## Commands (all verified on Node 22)
+## Run
+
+```bash
+npm install
+export APP_SLACK_APP_TOKEN=xapp-…   # Socket Mode app-level token
+export APP_SLACK_BOT_TOKEN=xoxb-…   # bot token
+export SCA_REPO=/path/to/your/repo  # the --clone seed
+# optional: SCA_AGENT=codex|claude  SCA_LOG_LEVEL=summary|verbose  SCA_BOT_USER=U…
+npm run build && npm start -- --sandbox=sbx ./data
+# or, for development:  npm run dev -- --sandbox=sbx ./data
+```
+
+On first use the router checks `sbx secret ls`; if the agent's credential is missing it prints the
+one-time setup steps and exits. Then it listens for `@bot` mentions, runs a turn per thread, and
+replies in-thread. Watch a thread's boundary log:
+
+```bash
+tail -f ./data/router.log | jq 'select(.threadId=="t-C0ABCDEF-1748600000.123456")'
+```
+
+## Commands
 
 | Command | What it does |
 | --- | --- |
-| `npm install` | Install the dev toolchain. |
-| `npm run dev` | Run the CLI under `tsx watch` (pass args: `npm run dev -- --sandbox=sbx ./data`). |
-| `npm run build` | Type-check and emit `dist/` (`tsc -p tsconfig.build.json`). |
-| `npm start` | Run the built CLI (`node dist/cli/index.js`). |
-| `npm run check` | **CI verify:** Biome (lint + format + import-organize) + `tsc --noEmit`. |
-| `npm run check:fix` | Apply Biome fixes, then type-check. |
-| `npm run lint` / `format` / `typecheck` | The individual steps. |
+| `npm run check` | **The gate:** Biome (lint+format+imports, `--error-on-warnings`) + `tsc --noEmit` + Vitest. |
+| `npm run check:fix` | Apply Biome fixes, then run the gate. |
+| `npm test` / `test:watch` / `test:cov` | Run Vitest (offline unit tests). |
+| `npm run test:live` | The `*.live.test.ts` lane (needs sbx daemon + Docker + creds; **not** in CI). |
+| `npm run build` | Emit `dist/` (`tsc -p tsconfig.build.json`, excludes tests). |
+| `npm start` / `npm run dev` | Run the built CLI / run under `tsx watch`. |
 
 ## Layout (by seam — spec §3)
 
 ```
 src/
-  platform/   PlatformAdapter — Slack Socket Mode ingress/egress
-  sandbox/    SandboxProvider — sbx microVM lifecycle (exec = the logged transport)
-  backend/    CodingBackend   — Codex / Claude Code / Pi (turnArgs + parseResult)
-  router/     Router          — dedupe, idle/running/pending, dispatch, boundary logging
-  cli/        entrypoint      — `--sandbox=<provider> <data-dir>` (pi-mom-style)
-  types.ts    shared types
-.github/workflows/   ci.yml (check + build), audit.yml (weekly npm audit)
-biome.json           single lint + format config (Biome 2.x)
-tsconfig.json        base TS config (strict, ESM/NodeNext)
-tsconfig.build.json  build config (emits dist/, excludes tests)
+  platform/  slack-map.ts (pure event→Mention) + slack.ts (Socket Mode + Web API adapter)
+  sandbox/   sbx-argv.ts (pure argv builders) + sbx-provider.ts (spawn/drain I/O shell)
+  backend/   codex.ts (turnArgs/parseResult/sessionId — the ONLY agent-format knowledge) + fixtures/
+  router/    state-machine, dedupe, sandbox-name, agent-state(+store), log, dispatcher, router
+  cli/       args.ts + onboarding.ts + index.ts (composition root)
+  types.ts   shared types
 ```
 
-## Conventions (re-implemented from pi-mom's — spec §10)
+Pure logic is separated from I/O so almost everything is unit-tested offline with injected fakes (the
+dispatcher test is the logical end-to-end). Parts that touch live services — the Socket Mode connection
+and the sbx/Codex execution path — are verified hands-on (see [AGENTS.md](./AGENTS.md) §8 and the live
+lane).
 
-- **TypeScript**, `strict`, **ESM (`NodeNext`)** — relative imports use `.js` extensions (e.g. `import { Router } from "./router/index.js"`).
-- **Biome** is the single lint + format + import-organize tool. `$schema` points at the **local** `node_modules` schema so it always matches the installed Biome version (avoids the "schema does not match CLI version" error).
-- **tsconfig pair:** `tsconfig.json` (base — editor + `tsc --noEmit`) and `tsconfig.build.json` (emits `dist/`, excludes tests).
-- **CI:** GitHub Actions on push/PR → `npm ci --ignore-scripts` → `check` → `build`; plus a weekly `npm audit --omit=dev`.
+## Conventions
 
-## Implementation checklist (next steps)
-
-The seams are typed interfaces with skeleton wiring (`Router` shows the dispatch shape). Fill them in roughly this order — section refs are to the design spec:
-
-1. **PlatformAdapter** (`src/platform`) — Slack Socket Mode. **ACK the envelope immediately (<3s), run the handler async**; user-facing acks are reactions, not replies (§3, §4.1). Add `@slack/socket-mode` + `@slack/web-api`.
-2. **SandboxProvider** (`src/sandbox`) — `sbx` microVM: `create` (`--clone`), `exec` (**wrap in `bash -c`**), `getFile`/`putFile`, `stop`/`destroy`, `list` (`sbx ls`). (§4.3, §4.4, §4.5)
-3. **CodingBackend** (`src/backend`) — Codex first: `turnArgs` + `parseResult` + `captureSessionId`. Drive with `--json`, **capture stderr too, keep reading until exit** (§4.5, §4.9, §9.14–§9.15).
-4. **Router** (`src/router`) — idle/running/pending coalescing, `ts` dedupe, boundary logging, and per-thread `~/.agent-state` (`transcript.jsonl` + `session`) (§4.1, §4.2, §4.6, §4.9).
-5. **Wire it** in `src/cli` — construct the three implementations + `Router`, then `router.start()`.
-
-> Runtime Slack/agent dependencies are intentionally **not** included yet, so the scaffold installs and builds with the toolchain alone. Add them as you implement each seam.
+- **TypeScript** `strict`, **ESM (NodeNext)** — relative imports use `.js`; type-only imports use
+  `import type`. **Biome** is the single lint/format/import tool. CI: GitHub Actions →
+  `npm ci --ignore-scripts` → `check` → `build`; plus a weekly `npm audit`.
