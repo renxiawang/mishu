@@ -25,6 +25,8 @@ export interface ExecCallOptions {
   onChunk?: (stream: "stdout" | "stderr", chunk: string) => void;
   /** Optional input to write before closing stdin. Stdin is always closed (§9.15). */
   stdin?: string;
+  /** Working directory inside the sandbox (e.g. the provisioned repo clone, §4.3). */
+  cwd?: string;
 }
 
 export interface SandboxProvider {

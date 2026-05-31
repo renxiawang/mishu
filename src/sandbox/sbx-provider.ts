@@ -109,7 +109,14 @@ export class SbxProvider implements SandboxProvider {
   }
 
   exec(handle: SandboxHandle, argv: string[], opts: ExecCallOptions = {}): Promise<ExecResult> {
-    return this.run(execAgentArgv(handle.name, argv, { login: this.login, pty: this.pty }), opts);
+    return this.run(
+      execAgentArgv(handle.name, argv, {
+        login: this.login,
+        pty: this.pty,
+        workdir: opts.cwd,
+      }),
+      opts,
+    );
   }
 
   execShell(

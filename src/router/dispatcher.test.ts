@@ -58,9 +58,11 @@ class FakeSandbox {
     this.existing.push({ name });
     return { name };
   }
+  lastCwd: string | undefined;
   async exec(_h: SandboxHandle, argv: string[], opts?: ExecCallOptions): Promise<ExecResult> {
     this.trace.push("exec");
     this.execArgs.push(argv);
+    this.lastCwd = opts?.cwd;
     opts?.onChunk?.("stdout", this.execResult.stdout);
     opts?.onChunk?.("stderr", this.execResult.stderr);
     return this.execResult;
@@ -194,6 +196,9 @@ describe("dispatchTurn — turn 1 happy path", () => {
     expect(at("write:transcript.jsonl")).toBeGreaterThan(at("reply"));
     // 👀 -> ✅ swap is last
     expect(t.slice(-2)).toEqual(["-eyes", "+white_check_mark"]);
+    // provisioned the repo and ran the agent IN it (§4.3)
+    expect(t).toContain("shell:test"); // the `test -d …/.git || git clone …` provision
+    expect(b.sandbox.lastCwd).toBe("/home/agent/repo");
   });
 
   it("reuses an existing sandbox instead of creating one", async () => {
