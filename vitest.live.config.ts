@@ -13,6 +13,7 @@ export default defineConfig({
     include: ["src/**/*.live.test.ts"],
     passWithNoTests: true,
     testTimeout: 120_000,
-    hookTimeout: 120_000,
+    // sandbox create can pull an image on first run — give setup generous time.
+    hookTimeout: 300_000,
   },
 });
