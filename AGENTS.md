@@ -57,11 +57,13 @@ Invariants — do not break these:
 
 ## 4. Sandbox naming (§4.1) — `src/router/sandbox-name.ts`
 
-- `name = "t-" + channel + "-" + thread_ts`. **sbx `--name` allows `[A-Za-z0-9.+-]` but NOT `_`**
-  (verified, v0.31.1). Periods are legal — **keep the `.`; never `thread_ts.replace(".", "_")`** (the
-  spec's §4.1 sample has this bug; it emits an illegal `_`). A test guards against reintroducing it.
-- The name is injective + reversible (split once after `t-`; channel is `[A-Za-z0-9]`, thread_ts is
-  `\d+\.\d+`). Over-length names fall back to `t-<hash>`; the full id is stored in `~/.agent-state/thread`.
+- `name = "t-" + channel + "-" + thread_ts` with the `.` encoded as `-`. **The binding constraint
+  (verified LIVE) is the container HOSTNAME**, which rejects BOTH `_` (so the spec's §4.1
+  `replace(".", "_")` is illegal for `--name`) AND `.` (accepted by `--name` but `sbx create` fails
+  "hostname: value must be a valid hostname"). So emit only `[A-Za-z0-9-]` — encode `thread_ts`'s `.`
+  as `-`. A test guards against ever emitting `_` or `.`.
+- Reversible: `t-<channel>-<secs>-<micros>` (channel has no `-`; ts is two numeric groups). Over-length
+  names fall back to `t-<hash>`; the full id is stored in `~/.agent-state/thread`.
 
 ## 5. Boundary logging (§4.9) — `src/router/log.ts`
 
