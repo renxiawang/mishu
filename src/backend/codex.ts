@@ -51,7 +51,10 @@ function asString(value: unknown): string | null {
  * Prompt is a positional (not stdin) so the provider can close stdin (§9.15).
  */
 export function codexTurnArgs(message: string, sessionId?: string | null): string[] {
-  const common = ["--json", ...CODEX_NONBLOCKING_FLAGS];
+  // --skip-git-repo-check: never block headless on codex's trusted-directory
+  // check (the microVM is the boundary). Verified live: without it, codex exits
+  // "Not inside a trusted directory".
+  const common = ["--json", "--skip-git-repo-check", ...CODEX_NONBLOCKING_FLAGS];
   if (sessionId === undefined || sessionId === null) {
     return ["codex", "exec", ...common, "--", message];
   }

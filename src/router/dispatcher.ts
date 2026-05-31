@@ -54,6 +54,13 @@ export interface DispatcherDeps {
 const DEFAULT_FAILURE =
   "⚠️ The coding agent didn't return a result for that turn. Your request is still queued — mention me again to retry.";
 
+/** sbx --clone exposes the read-only source repo here (verified live; §9.13). */
+const SBX_CLONE_SOURCE = "/run/sandbox/source";
+/** In-VM writable clone dir the agent works in (under $HOME, outside ~/.agent-state). */
+const IN_VM_REPO_DIR = "repo";
+/** Non-base branch the agent's work starts on (§4.3). */
+const WORK_BRANCH = "slack/work";
+
 /** Render messages into a single prompt. Plumbing, not authorship — no editorializing. */
 export function formatPrompt(messages: ThreadMessage[]): string {
   return messages.map((m) => `${m.user}: ${m.text}`).join("\n\n");
@@ -111,11 +118,18 @@ export class Dispatcher {
 
       const prompt = formatPrompt(delta);
       const argv = this.backend.turnArgs(prompt, sessionId ?? undefined);
+
+      // Provision a writable repo clone and run the agent IN it (§4.3) — verified
+      // live: without this codex exits "Not inside a trusted directory".
+      const home = await this.sandbox.homeDir(handle);
+      const repoPath = `${home}/${IN_VM_REPO_DIR}`;
+      await this.provisionRepo(handle, repoPath, ctx);
+
       this.write(
         buildTurnIn(ctx, this.ts(), {
           sessionId,
           argv,
-          cwd: this.repoRef,
+          cwd: repoPath,
           prompt,
           level: this.level,
         }),
@@ -123,6 +137,7 @@ export class Dispatcher {
 
       const start = this.now();
       const { stdout, stderr, exitCode } = await this.sandbox.exec(handle, argv, {
+        cwd: repoPath,
         onChunk: (stream, chunk) => {
           if (this.level === "verbose") {
             this.write(buildOutChunk(ctx, this.ts(), { stream, chunk }));
@@ -194,6 +209,26 @@ export class Dispatcher {
       await this.sandbox.execShell(handle, this.provisionScript);
     }
     return handle;
+  }
+
+  /**
+   * Clone the read-only `--clone` source into a writable repo dir and seed a
+   * non-base branch (§4.3). Idempotent — runs cheaply each turn, clones once.
+   * The agent later points origin at the real remote + pushes when asked (§4.6).
+   */
+  private async provisionRepo(
+    handle: SandboxHandle,
+    repoPath: string,
+    ctx: LogContext,
+  ): Promise<void> {
+    const script =
+      `test -d ${repoPath}/.git || ` +
+      `{ git clone -q ${SBX_CLONE_SOURCE} ${repoPath} && ` +
+      `git -C ${repoPath} checkout -q -B ${WORK_BRANCH}; }`;
+    const result = await this.sandbox.execShell(handle, script);
+    if (result.exitCode !== 0) {
+      this.router(ctx, "provision.failed", { stderrSnippet: result.stderr.slice(0, 300) });
+    }
   }
 
   /** Turn 1 (no session): whole-thread primer. Follow-up: messages after the hwm. */
