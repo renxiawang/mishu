@@ -14,6 +14,18 @@ export function credentialService(agent: Agent): string {
   return agent === "codex" ? "openai" : "anthropic";
 }
 
+/**
+ * The interactive `sbx` command (argv after the `sbx` bin) that establishes the
+ * agent's credential — what `npm run setup` runs (§4.8). Codex has a one-shot
+ * OAuth command; Claude has no `anthropic --oauth`, so it logs in inside a
+ * sandbox (`sbx run claude` → /login) and sbx captures the credential host-side.
+ */
+export function setupCommand(agent: Agent): string[] {
+  return agent === "codex"
+    ? ["secret", "set", "-g", credentialService(agent), "--oauth"]
+    : ["run", "claude"];
+}
+
 /** True if `sbx secret ls` shows no credential for the agent's service. */
 export function detectMissingCredential(secretLsOutput: string, agent: Agent): boolean {
   const service = credentialService(agent);
@@ -28,6 +40,9 @@ export function onboardingInstructions(agent: Agent): string {
     return [
       `No '${service}' credential is configured in sbx for Codex.`,
       "",
+      "  Easiest:  npm run setup   (walks you through it)",
+      "",
+      "  …or do it manually:",
       `  1. Run:  sbx secret set -g ${service} --oauth`,
       "  2. Finish the browser sign-in.",
       `  3. Re-run once 'sbx secret ls' shows '${service} (oauth configured)'.`,
@@ -38,6 +53,9 @@ export function onboardingInstructions(agent: Agent): string {
   return [
     `No '${service}' credential is configured in sbx for Claude.`,
     "",
+    "  Easiest:  npm run setup   (walks you through it)",
+    "",
+    "  …or do it manually:",
     "  1. Run:  sbx run claude",
     "  2. In the session type /login, finish the browser sign-in, then exit.",
     `  3. Re-run once 'sbx secret ls' shows '${service} (oauth configured)'.`,

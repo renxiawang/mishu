@@ -3,6 +3,7 @@ import {
   detectMissingCredential,
   ensureOnboarded,
   onboardingInstructions,
+  setupCommand,
 } from "./onboarding.js";
 
 describe("credentialService", () => {
@@ -29,13 +30,26 @@ describe("detectMissingCredential", () => {
 describe("onboardingInstructions", () => {
   it("guides Codex through the OAuth path the user chose (§4.8)", () => {
     const text = onboardingInstructions("codex");
+    expect(text).toContain("npm run setup");
     expect(text).toContain("sbx secret set -g openai --oauth");
   });
 
   it("guides Claude through the one-command login sandbox (/login)", () => {
     const text = onboardingInstructions("claude");
+    expect(text).toContain("npm run setup");
     expect(text).toContain("sbx run claude");
     expect(text).toContain("/login");
+  });
+});
+
+describe("setupCommand", () => {
+  it("codex: a single sbx OAuth command", () => {
+    expect(setupCommand("codex")).toEqual(["secret", "set", "-g", "openai", "--oauth"]);
+  });
+
+  it("claude: in-sandbox login, not an (unsupported) anthropic --oauth", () => {
+    expect(setupCommand("claude")).toEqual(["run", "claude"]);
+    expect(setupCommand("claude")).not.toContain("--oauth");
   });
 });
 
