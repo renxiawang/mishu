@@ -1,0 +1,2 @@
+{"type":"system","subtype":"init","cwd":"/root/repo","session_id":"019e900d-aa11-4b22-9c33-445566778899","tools":["Bash","Read","Edit"],"model":"claude-opus-4-20250514","permissionMode":"bypassPermissions","apiKeySource":"none"}
+{"type":"result","subtype":"error_during_execution","is_error":true,"duration_ms":800,"num_turns":1,"result":"Credit balance is too low to continue. Visit the Anthropic console to add credits.","session_id":"019e900d-aa11-4b22-9c33-445566778899"}
