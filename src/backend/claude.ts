@@ -1,5 +1,6 @@
 import type { SandboxHandle } from "../sandbox/index.js";
 import type { CodingBackend, SandboxShellExecutor, TurnResult } from "./index.js";
+import { asString, isRecord, newestByMtime, parseJsonlEvents } from "./parsing.js";
 
 /**
  * Claude Code backend — the ONLY place Claude Code's CLI/output format lives
@@ -32,14 +33,6 @@ export const CLAUDE_PROJECTS_PATH = "$HOME/.claude/projects";
  * edit (`--permission-mode bypassPermissions` is an equivalent newer spelling).
  */
 export const CLAUDE_NONBLOCKING_FLAGS = ["--dangerously-skip-permissions"];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function asString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
 
 /**
  * Build the turn invocation. `--` guards a prompt that might start with `-`.
@@ -153,44 +146,7 @@ const SESSION_UUID_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a
 /** The session UUID from a `<session-id>.jsonl` transcript filename (§4.5). */
 export function parseClaudeSessionFilename(filename: string): string | null {
   const match = SESSION_UUID_RE.exec(filename);
-  return match !== null && match[1] !== undefined ? match[1] : null;
-}
-
-/** From `find … -printf '%T@\t%p\n'` output, the path with the greatest mtime. */
-export function newestSessionPath(findOutput: string): string | null {
-  let bestPath: string | null = null;
-  let bestMtime = Number.NEGATIVE_INFINITY;
-  for (const line of findOutput.split("\n")) {
-    if (line.trim() === "") {
-      continue;
-    }
-    const tab = line.indexOf("\t");
-    if (tab < 0) {
-      continue;
-    }
-    const mtime = Number.parseFloat(line.slice(0, tab));
-    if (Number.isFinite(mtime) && mtime > bestMtime) {
-      bestMtime = mtime;
-      bestPath = line.slice(tab + 1);
-    }
-  }
-  return bestPath;
-}
-
-/** Parse the stream-json into raw events for log enrichment (degrade to []). */
-export function claudeEvents(captured: string): unknown[] {
-  const events: unknown[] = [];
-  for (const line of captured.split("\n")) {
-    if (line.trim() === "") {
-      continue;
-    }
-    try {
-      events.push(JSON.parse(line));
-    } catch {
-      // skip non-JSON progress lines
-    }
-  }
-  return events;
+  return match?.[1] ?? null;
 }
 
 export class ClaudeBackend implements CodingBackend {
@@ -213,14 +169,14 @@ export class ClaudeBackend implements CodingBackend {
   }
 
   events(captured: string): unknown[] {
-    return claudeEvents(captured);
+    return parseJsonlEvents(captured);
   }
 
   /** Fallback when the stream had no id: newest transcript under CLAUDE_PROJECTS_PATH. */
   async captureSessionId(handle: SandboxHandle): Promise<string> {
     const command = `find ${CLAUDE_PROJECTS_PATH} -name '*.jsonl' -printf '%T@\\t%p\\n' 2>/dev/null`;
     const { stdout } = await this.executor.execShell(handle, command);
-    const newest = newestSessionPath(stdout);
+    const newest = newestByMtime(stdout);
     if (newest === null) {
       throw new Error("claude: no session transcript found to capture the session id (§4.5)");
     }

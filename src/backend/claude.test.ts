@@ -4,9 +4,7 @@ import type { ExecResult, SandboxHandle } from "../sandbox/index.js";
 import {
   CLAUDE_NONBLOCKING_FLAGS,
   ClaudeBackend,
-  claudeEvents,
   claudeTurnArgs,
-  newestSessionPath,
   parseClaudeResult,
   parseClaudeSessionFilename,
   parseClaudeSessionId,
@@ -120,7 +118,7 @@ describe("parseClaudeSessionId", () => {
   });
 });
 
-describe("parseClaudeSessionFilename / newestSessionPath", () => {
+describe("parseClaudeSessionFilename", () => {
   it("extracts the UUID from a transcript filename", () => {
     expect(parseClaudeSessionFilename(fixture("claude-session-filename.txt").trim())).toBe(
       SESSION_ID,
@@ -130,20 +128,6 @@ describe("parseClaudeSessionFilename / newestSessionPath", () => {
   it("returns null for a non-session filename", () => {
     expect(parseClaudeSessionFilename("config.json")).toBeNull();
     expect(parseClaudeSessionFilename("notes.jsonl")).toBeNull();
-  });
-
-  it("picks the path with the greatest mtime", () => {
-    expect(newestSessionPath(findOutput)).toBe(
-      `/home/agent/.claude/projects/-home-agent-repo/${SESSION_ID}.jsonl`,
-    );
-    expect(newestSessionPath("")).toBeNull();
-  });
-});
-
-describe("claudeEvents", () => {
-  it("parses every JSON line and degrades gracefully on garbage", () => {
-    expect(claudeEvents(stream)).toHaveLength(7);
-    expect(claudeEvents("not json\n{bad}\n")).toEqual([]);
   });
 });
 

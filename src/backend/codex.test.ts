@@ -4,9 +4,7 @@ import type { ExecResult, SandboxHandle } from "../sandbox/index.js";
 import {
   CODEX_NONBLOCKING_FLAGS,
   CodexBackend,
-  codexEvents,
   codexTurnArgs,
-  newestRolloutPath,
   parseCodexResult,
   parseRolloutId,
   parseSessionId,
@@ -115,7 +113,7 @@ describe("parseSessionId", () => {
   });
 });
 
-describe("parseRolloutId / newestRolloutPath", () => {
+describe("parseRolloutId", () => {
   it("extracts the UUID from a rollout filename", () => {
     expect(parseRolloutId(fixture("codex-rollout-filename.txt").trim())).toBe(
       "7f3e9c21-4b6a-4c2d-9e1f-2a3b4c5d6e7f",
@@ -124,20 +122,6 @@ describe("parseRolloutId / newestRolloutPath", () => {
 
   it("returns null for a non-rollout filename", () => {
     expect(parseRolloutId("config.toml")).toBeNull();
-  });
-
-  it("picks the path with the greatest mtime", () => {
-    expect(newestRolloutPath(findOutput)).toBe(
-      "/root/.codex/sessions/2026/05/30/rollout-2026-05-30T12-30-00-7f3e9c21-4b6a-4c2d-9e1f-2a3b4c5d6e7f.jsonl",
-    );
-    expect(newestRolloutPath("")).toBeNull();
-  });
-});
-
-describe("codexEvents", () => {
-  it("parses every JSON line and degrades gracefully on garbage", () => {
-    expect(codexEvents(stream)).toHaveLength(4);
-    expect(codexEvents("not json\n{bad}\n")).toEqual([]);
   });
 });
 

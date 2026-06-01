@@ -1,5 +1,6 @@
 import type { SandboxHandle } from "../sandbox/index.js";
 import type { CodingBackend, SandboxShellExecutor, TurnResult } from "./index.js";
+import { asString, isRecord, newestByMtime, parseJsonlEvents } from "./parsing.js";
 
 /**
  * Codex backend — the ONLY place Codex's CLI/output format lives (spec §4.5/§4.9).
@@ -32,14 +33,6 @@ export const CODEX_NONBLOCKING_FLAGS = [
   "-c",
   "approval_policy=never",
 ];
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function asString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
 
 /**
  * Build the turn invocation. `--` guards a prompt/id that might start with `-`.
@@ -175,44 +168,7 @@ const ROLLOUT_UUID_RE = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 /** The session UUID embedded in a `rollout-…-<uuid>.jsonl` filename (§4.5). */
 export function parseRolloutId(filename: string): string | null {
   const match = ROLLOUT_UUID_RE.exec(filename);
-  return match !== null && match[1] !== undefined ? match[1] : null;
-}
-
-/** From `find … -printf '%T@\t%p\n'` output, the path with the greatest mtime. */
-export function newestRolloutPath(findOutput: string): string | null {
-  let bestPath: string | null = null;
-  let bestMtime = Number.NEGATIVE_INFINITY;
-  for (const line of findOutput.split("\n")) {
-    if (line.trim() === "") {
-      continue;
-    }
-    const tab = line.indexOf("\t");
-    if (tab < 0) {
-      continue;
-    }
-    const mtime = Number.parseFloat(line.slice(0, tab));
-    if (Number.isFinite(mtime) && mtime > bestMtime) {
-      bestMtime = mtime;
-      bestPath = line.slice(tab + 1);
-    }
-  }
-  return bestPath;
-}
-
-/** Parse the `--json` stream into raw events for log enrichment (degrade to []). */
-export function codexEvents(captured: string): unknown[] {
-  const events: unknown[] = [];
-  for (const line of captured.split("\n")) {
-    if (line.trim() === "") {
-      continue;
-    }
-    try {
-      events.push(JSON.parse(line));
-    } catch {
-      // skip non-JSON progress lines
-    }
-  }
-  return events;
+  return match?.[1] ?? null;
 }
 
 export class CodexBackend implements CodingBackend {
@@ -235,14 +191,14 @@ export class CodexBackend implements CodingBackend {
   }
 
   events(captured: string): unknown[] {
-    return codexEvents(captured);
+    return parseJsonlEvents(captured);
   }
 
   /** Fallback when the stream had no id: newest rollout file under CODEX_HOME. */
   async captureSessionId(handle: SandboxHandle): Promise<string> {
     const command = `find ${CODEX_SESSIONS_PATH} -name 'rollout-*.jsonl' -printf '%T@\\t%p\\n' 2>/dev/null`;
     const { stdout } = await this.executor.execShell(handle, command);
-    const newest = newestRolloutPath(stdout);
+    const newest = newestByMtime(stdout);
     if (newest === null) {
       throw new Error("codex: no rollout file found to capture the session id (§4.5)");
     }
