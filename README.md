@@ -28,14 +28,14 @@ success or ❌ on failure when the turn finishes. The actual answer is posted as
 
 ## Set it up
 
-You need **Docker Desktop**, the **`sbx` CLI** (Docker Sandboxes, v0.31.1), a **Slack app**, and a
-**target git repo**. One-time setup:
+You need the **`sbx` CLI** (Docker Sandboxes, v0.31.1 — it bundles its own container runtime and
+hypervisor, so **Docker Desktop is not required**), a **Slack app**, and a **target git repo**.
+One-time setup:
 
 ### 1. Sandboxes (`sbx`)
 
 ```bash
-# Docker Desktop must be running, then:
-sbx login                          # sign in to Docker
+sbx login                          # sign in to Docker (to pull the sandbox images)
 sbx policy set-default balanced    # allow OpenAI / GitHub / package registries
 
 # Give the coding agent its credential (must exist BEFORE the bot creates sandboxes):
@@ -132,7 +132,7 @@ rules) you must follow.
 | `npm run check` | **The gate:** Biome (lint + format + imports) + `tsc --noEmit` + Vitest. Keep it green. |
 | `npm run check:fix` | Apply Biome fixes, then run the gate. |
 | `npm test` / `test:watch` / `test:cov` | Run Vitest (offline unit tests). |
-| `npm run test:live` | `*.live.test.ts` against the real sbx daemon (needs Docker + sbx; **not** in CI). |
+| `npm run test:live` | `*.live.test.ts` against the real sbx daemon (needs `sbx` running; **not** in CI). |
 | `npm run build` | Emit `dist/` (`tsc -p tsconfig.build.json`, excludes tests). |
 | `npm start` / `npm run dev` | Run the built CLI / run under `tsx watch`. |
 
