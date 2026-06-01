@@ -20,7 +20,6 @@ and relays the result back.
 - **Pick up after idle.** Mention it a day later and it resumes where it left off — code and
   conversation both restored.
 - **Ship it.** Ask it to push or open a PR and the agent runs `git`/`gh` itself from inside the sandbox.
-- **Grab a file.** Ask for a file it produced and it uploads it to the thread.
 
 **Reading the bot's reactions:** 👀 means it picked up your mention and is working; it swaps to ✅ on
 success or ❌ on failure when the turn finishes. The actual answer is posted as a reply in the thread.
@@ -48,15 +47,32 @@ sbx secret ls                      # should show: openai (… configured)
 
 ### 2. Slack app (Socket Mode)
 
-Create a Slack app with **Socket Mode enabled** and these **bot scopes**: `app_mentions:read`,
-`chat:write`, `reactions:write`, `channels:history` (+ `groups:history` for private channels),
-`files:write`, `users:read`. Install it to your workspace and **invite the bot to a channel**.
+Never made a Slack app? Follow these steps:
+
+1. **Create the app** — go to <https://api.slack.com/apps> → **Create New App** → **From scratch**,
+   name it, and pick your workspace.
+2. **Enable Socket Mode** — *Settings → Socket Mode* → toggle **Enable Socket Mode** on.
+3. **App-Level Token** — generate one (the Socket Mode toggle prompts for it, or *Settings → Basic
+   Information → App-Level Tokens*) with the **`connections:write`** scope. This `xapp-…` token is your
+   **`APP_SLACK_APP_TOKEN`**.
+4. **Bot Token Scopes** — *Features → OAuth & Permissions → Scopes → Bot Token Scopes*, add:
+   - `app_mentions:read` — receive the `@mention` that triggers a turn
+   - `chat:write` — post replies in the thread
+   - `reactions:write` — the 👀 / ✅ / ❌ acks
+   - `channels:history` — read thread messages in public channels
+   - `groups:history` — read thread messages in private channels
+5. **Subscribe to events** — *Features → Event Subscriptions* → toggle **Enable Events** on → under
+   **Subscribe to bot events**, add **`app_mention`** (the only event this bot needs).
+6. **Install** — *Settings → Install App* → install to your workspace → copy the **Bot User OAuth
+   Token** (`xoxb-…`). This is your **`APP_SLACK_BOT_TOKEN`**.
+7. **Invite the bot** to any channel you want it to work in: `/invite @YourBot` — it only sees
+   messages in channels it's been added to.
 
 Put the two tokens in a `.env` file at the repo root:
 
 ```bash
-APP_SLACK_APP_TOKEN=xapp-…   # app-level token (Socket Mode; scope connections:write)
-APP_SLACK_BOT_TOKEN=xoxb-…   # bot token
+APP_SLACK_APP_TOKEN=xapp-…   # step 3 — app-level token (Socket Mode)
+APP_SLACK_BOT_TOKEN=xoxb-…   # step 6 — bot user OAuth token
 ```
 
 ### 3. Run
