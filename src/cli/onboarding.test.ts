@@ -32,8 +32,10 @@ describe("onboardingInstructions", () => {
     expect(text).toContain("sbx secret set -g openai --oauth");
   });
 
-  it("guides Claude through the disposable login sandbox", () => {
-    expect(onboardingInstructions("claude")).toContain("_login-tmp");
+  it("guides Claude through the one-command login sandbox (/login)", () => {
+    const text = onboardingInstructions("claude");
+    expect(text).toContain("sbx run claude");
+    expect(text).toContain("/login");
   });
 });
 
