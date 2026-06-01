@@ -21,7 +21,7 @@ const errorStream = fixture("claude-error.jsonl");
 const emptyStream = fixture("claude-empty.stdout.txt");
 const findOutput = fixture("claude-find-output.txt");
 
-const SESSION_ID = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
+const SESSION_ID = "c4beb659-a473-49be-a56c-51ddc0c0ce81";
 
 describe("claudeTurnArgs", () => {
   it("turn 1: -p stream-json + --verbose + non-blocking flags + `--` guard, no --resume", () => {
@@ -68,11 +68,10 @@ describe("claudeTurnArgs", () => {
 });
 
 describe("parseClaudeResult", () => {
-  it("extracts the final result text and marks ok (success fixture)", () => {
-    expect(parseClaudeResult(stream)).toEqual({
-      finalText: "Fixed the login timeout in auth.go and added a regression test.",
-      ok: true,
-    });
+  it("extracts the final result text and marks ok (real success fixture)", () => {
+    // Real capture: init → rate_limit_event → assistant thinking → tool_use →
+    // tool_result → assistant text → result. The result event is authoritative.
+    expect(parseClaudeResult(stream)).toEqual({ finalText: "done", ok: true });
   });
 
   it("flags empty output as a failed turn (headless empty-output regression)", () => {
@@ -135,7 +134,7 @@ describe("parseClaudeSessionFilename / newestSessionPath", () => {
 
   it("picks the path with the greatest mtime", () => {
     expect(newestSessionPath(findOutput)).toBe(
-      `/root/.claude/projects/-root-repo/${SESSION_ID}.jsonl`,
+      `/home/agent/.claude/projects/-home-agent-repo/${SESSION_ID}.jsonl`,
     );
     expect(newestSessionPath("")).toBeNull();
   });
@@ -143,7 +142,7 @@ describe("parseClaudeSessionFilename / newestSessionPath", () => {
 
 describe("claudeEvents", () => {
   it("parses every JSON line and degrades gracefully on garbage", () => {
-    expect(claudeEvents(stream)).toHaveLength(5);
+    expect(claudeEvents(stream)).toHaveLength(7);
     expect(claudeEvents("not json\n{bad}\n")).toEqual([]);
   });
 });
@@ -182,6 +181,6 @@ describe("ClaudeBackend.captureSessionId (I/O via injected executor)", () => {
     expect(backend.configHome()).toBe("~/.claude");
     expect(backend.parseSessionId(stream)).toBe(SESSION_ID);
     expect(backend.parseResult(emptyStream).ok).toBe(false);
-    expect(backend.events(stream)).toHaveLength(5);
+    expect(backend.events(stream)).toHaveLength(7);
   });
 });
