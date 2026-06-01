@@ -38,9 +38,12 @@ export function onboardingInstructions(agent: Agent): string {
   return [
     `No '${service}' credential is configured in sbx for Claude.`,
     "",
-    "  1. sbx create --name _login-tmp claude <throwaway-dir>",
-    "  2. sbx run _login-tmp   → type /login, finish the browser sign-in, then exit",
-    `  3. Wait for 'sbx secret ls' to show '${service} (oauth configured)', then: sbx rm --force _login-tmp`,
+    "  1. Run:  sbx run claude",
+    "  2. In the session type /login, finish the browser sign-in, then exit.",
+    `  3. Re-run once 'sbx secret ls' shows '${service} (oauth configured)'.`,
+    "",
+    "(The credential is host-side and proxy-injected — it never enters a sandbox, §4.7.",
+    " There's no 'anthropic --oauth'; the login sandbox is throwaway — 'sbx rm --force claude' clears it.)",
   ].join("\n");
 }
 
