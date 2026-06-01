@@ -60,6 +60,8 @@ export class SbxProvider implements SandboxProvider {
   private readonly createOptions: CreateOptions;
   private readonly login: boolean;
   private readonly pty: boolean;
+  /** Per-sandbox `$HOME` cache — invariant for a sandbox's life (see homeDir). */
+  private readonly homeDirCache = new Map<string, string>();
 
   constructor(config: SbxProviderConfig = {}) {
     this.spawnFn = config.spawnFn ?? defaultSpawn;
@@ -149,11 +151,20 @@ export class SbxProvider implements SandboxProvider {
   // --- SandboxFsLike (structural) ---------------------------------------
 
   async homeDir(handle: SandboxHandle): Promise<string> {
+    // $HOME is invariant for a sandbox's lifetime, yet each lookup is a full
+    // `sbx exec` round-trip — and the per-thread state store resolves it on
+    // every read/write (~5×/turn). Cache it per sandbox so we pay that once.
+    const cached = this.homeDirCache.get(handle.name);
+    if (cached !== undefined) {
+      return cached;
+    }
     const { stdout } = await this.execShell(handle, 'printf %s "$HOME"');
     // Defensive: take the last line in case sbx ever prefixes a start-up info
     // line on stdout (it normally routes those to stderr).
     const lines = stdout.trim().split("\n");
-    return (lines[lines.length - 1] ?? "").trim() || "/root";
+    const home = (lines[lines.length - 1] ?? "").trim() || "/root";
+    this.homeDirCache.set(handle.name, home);
+    return home;
   }
 
   /** File contents, or null if the file does not exist (non-zero `cat` exit). */
