@@ -9,7 +9,9 @@
  */
 import { createWriteStream, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { ClaudeBackend } from "../backend/claude.js";
 import { CodexBackend } from "../backend/codex.js";
+import type { CodingBackend } from "../backend/index.js";
 import { SlackAdapter } from "../platform/slack.js";
 import { IdleSweeper } from "../router/idle-sweep.js";
 import { Dispatcher, Router } from "../router/index.js";
@@ -63,7 +65,8 @@ async function run(args: Args): Promise<void> {
   const logSink = fileLogSink(args.dataDir);
   const platform = new SlackAdapter({ appToken, botToken, botUserId: process.env.SCA_BOT_USER });
   const botUser = await platform.whoAmI();
-  const backend = new CodexBackend(provider);
+  const backend: CodingBackend =
+    agent === "claude" ? new ClaudeBackend(provider) : new CodexBackend(provider);
   const dispatcher = new Dispatcher({
     platform,
     sandbox: provider,
