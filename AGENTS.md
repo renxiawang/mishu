@@ -22,8 +22,9 @@ there. Read this file before changing code.
 - `npm run check:fix` applies Biome fixes then runs the gate. `npm test` / `npm run test:watch` /
   `npm run test:cov` run Vitest. `npm run build` emits `dist/` (excludes `*.test.ts`). `npm run dev`
   runs the CLI under `tsx watch`.
-- `npm run test:live` runs the `*.live.test.ts` lane — needs the sbx daemon + Docker + creds, so it's
-  **NOT** part of `check`/CI. Run it locally after any `sbx` upgrade (§9, substrate risk).
+- `npm run test:live` runs the `*.live.test.ts` lane — needs the sbx daemon running (sbx bundles its
+  own runtime; no Docker Desktop), so it's **NOT** part of `check`/CI. Run it locally after any `sbx`
+  upgrade (§9, substrate risk).
 
 ## 2. Module rules (ESM, strict)
 
