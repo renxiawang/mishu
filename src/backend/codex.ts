@@ -1,5 +1,5 @@
-import type { ExecResult, SandboxHandle } from "../sandbox/index.js";
-import type { CodingBackend, TurnResult } from "./index.js";
+import type { SandboxHandle } from "../sandbox/index.js";
+import type { CodingBackend, SandboxShellExecutor, TurnResult } from "./index.js";
 
 /**
  * Codex backend — the ONLY place Codex's CLI/output format lives (spec §4.5/§4.9).
@@ -32,11 +32,6 @@ export const CODEX_NONBLOCKING_FLAGS = [
   "-c",
   "approval_policy=never",
 ];
-
-/** Minimal sandbox capability captureSessionId needs (one shell command). */
-export interface SandboxShellExecutor {
-  execShell(handle: SandboxHandle, command: string): Promise<ExecResult>;
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

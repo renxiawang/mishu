@@ -1,4 +1,4 @@
-import type { SandboxHandle } from "../sandbox/index.js";
+import type { ExecResult, SandboxHandle } from "../sandbox/index.js";
 
 /**
  * CodingBackend — per-agent knowledge: the ONLY place agent-format details
@@ -37,4 +37,9 @@ export interface CodingBackend {
 
   /** OPTIONAL: normalized events to enrich logs; router degrades to raw bytes if absent. */
   events?(captured: string): unknown[];
+}
+
+/** Minimal sandbox capability captureSessionId needs (one shell command). */
+export interface SandboxShellExecutor {
+  execShell(handle: SandboxHandle, command: string): Promise<ExecResult>;
 }
