@@ -81,9 +81,11 @@ describe("parseClaudeResult", () => {
   });
 
   it("surfaces the claude error message on a failed turn (real fixture)", () => {
+    // Real capture: an is_error:true result whose subtype is nonetheless "success"
+    // (so we key on is_error, never subtype). The result text is relayed.
     const result = parseClaudeResult(errorStream);
     expect(result.ok).toBe(false);
-    expect(result.finalText).toContain("Credit balance"); // relayed to the user
+    expect(result.finalText).toContain("Not logged in"); // relayed to the user
   });
 
   it("tolerates interleaved non-JSON progress lines", () => {
@@ -110,7 +112,7 @@ describe("parseClaudeSessionId", () => {
   });
 
   it("finds the id even on an errored turn (session still created)", () => {
-    expect(parseClaudeSessionId(errorStream)).toBe("019e900d-aa11-4b22-9c33-445566778899");
+    expect(parseClaudeSessionId(errorStream)).toBe("baa1bd5f-51eb-4ee1-8b52-4d2872998728");
   });
 
   it("returns null when no id is present", () => {
