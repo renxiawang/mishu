@@ -18,7 +18,7 @@ import { Dispatcher, Router } from "../router/index.js";
 import { createJsonlSink, type LogLevel, type LogSink } from "../router/log.js";
 import { SbxProvider } from "../sandbox/sbx-provider.js";
 import { type Args, parseArgs, USAGE } from "./args.js";
-import { type Agent, ensureOnboarded } from "./onboarding.js";
+import { type Agent, ensureOnboarded, parseAgent } from "./onboarding.js";
 
 /** Boundary-log sink: the router's stdout + an append-only JSONL file (§4.9). */
 function fileLogSink(dataDir: string): LogSink {
@@ -44,7 +44,7 @@ async function run(args: Args): Promise<void> {
     console.error(`Unsupported --sandbox=${args.sandbox} (v0 supports: sbx)`);
     process.exit(1);
   }
-  const agent: Agent = process.env.MISHU_AGENT === "claude" ? "claude" : "codex";
+  const agent: Agent = parseAgent(process.env.MISHU_AGENT) ?? "codex";
   const level: LogLevel = process.env.MISHU_LOG_LEVEL === "verbose" ? "verbose" : "summary";
 
   const provider = new SbxProvider({ createOptions: { agent } });

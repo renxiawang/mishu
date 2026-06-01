@@ -3,6 +3,7 @@ import {
   detectMissingCredential,
   ensureOnboarded,
   onboardingInstructions,
+  parseAgent,
   setupCommand,
 } from "./onboarding.js";
 
@@ -10,6 +11,16 @@ describe("credentialService", () => {
   it("maps agents to their sbx secret service (§4.7)", () => {
     expect(credentialService("codex")).toBe("openai");
     expect(credentialService("claude")).toBe("anthropic");
+  });
+});
+
+describe("parseAgent", () => {
+  it("accepts codex/claude and rejects anything else", () => {
+    expect(parseAgent("codex")).toBe("codex");
+    expect(parseAgent("claude")).toBe("claude");
+    expect(parseAgent("")).toBeNull();
+    expect(parseAgent(undefined)).toBeNull();
+    expect(parseAgent("gpt")).toBeNull();
   });
 });
 

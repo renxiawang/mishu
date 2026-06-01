@@ -9,6 +9,11 @@
 
 export type Agent = "codex" | "claude";
 
+/** Parse an agent name (from an env var or a prompt answer); null if unrecognized. */
+export function parseAgent(value: string | null | undefined): Agent | null {
+  return value === "codex" || value === "claude" ? value : null;
+}
+
 /** The sbx secret service that backs each agent's auth (§4.7). */
 export function credentialService(agent: Agent): string {
   return agent === "codex" ? "openai" : "anthropic";
