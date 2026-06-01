@@ -1,12 +1,12 @@
 {
-  "name": "slack-coding-agent",
+  "name": "mishu",
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "description": "Slack-native coding agent — a router that delegates Slack threads to a coding-agent CLI in an isolated sandbox.",
+  "description": "Mishu — a coding agent that lives in your team's chat (Slack today): mention it in a thread and it does the work in an isolated sandbox, then replies in-thread.",
   "license": "MIT",
   "bin": {
-    "slack-coding-agent": "dist/cli/index.js"
+    "mishu": "dist/cli/index.js"
   },
   "engines": {
     "node": ">=22"

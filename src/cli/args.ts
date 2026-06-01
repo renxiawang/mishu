@@ -1,8 +1,8 @@
 /**
  * CLI argument parsing (pure). Shape mirrors pi-mom's convention (spec §10):
  *
- *   slack-coding-agent --sandbox=<provider> <data-dir>
- *   e.g. slack-coding-agent --sandbox=sbx ./data
+ *   mishu --sandbox=<provider> <data-dir>
+ *   e.g. mishu --sandbox=sbx ./data
  */
 
 export interface Args {
@@ -31,14 +31,14 @@ export function parseArgs(argv: string[]): Args | null {
 }
 
 export const USAGE = [
-  "Usage: slack-coding-agent --sandbox=<provider> <data-dir>",
-  "  e.g. slack-coding-agent --sandbox=sbx ./data",
+  "Usage: mishu --sandbox=<provider> <data-dir>",
+  "  e.g. mishu --sandbox=sbx ./data",
   "",
   "Environment:",
   "  APP_SLACK_APP_TOKEN   xapp-…  app-level token (Socket Mode)",
   "  APP_SLACK_BOT_TOKEN   xoxb-…  bot token",
-  "  SCA_REPO              path to the target git repo (the --clone seed)",
-  "  SCA_AGENT             codex | claude   (default: codex)",
-  "  SCA_LOG_LEVEL         summary | verbose (default: summary)",
-  "  SCA_BOT_USER          bot user id (optional; resolved via auth.test otherwise)",
+  "  MISHU_REPO              path to the target git repo (the --clone seed)",
+  "  MISHU_AGENT             codex | claude   (default: codex)",
+  "  MISHU_LOG_LEVEL         summary | verbose (default: summary)",
+  "  MISHU_BOT_USER          bot user id (optional; resolved via auth.test otherwise)",
 ].join("\n");
