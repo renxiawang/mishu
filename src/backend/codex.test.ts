@@ -10,8 +10,8 @@ import {
   parseCodexResult,
   parseRolloutId,
   parseSessionId,
-  type SandboxShellExecutor,
 } from "./codex.js";
+import type { SandboxShellExecutor } from "./index.js";
 
 const fixture = (name: string): string =>
   readFileSync(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), "utf8");
