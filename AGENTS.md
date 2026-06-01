@@ -2,9 +2,7 @@
 
 Mishu — a coding agent that lives in your team's chat (Slack today): mention it in a Slack thread → it
 does the coding work in an isolated `sbx` microVM running a coding-agent CLI (Codex or Claude Code) →
-it reports back **in the same thread**.
-The design spec is `.context/attachments/2PRioL/slack-coding-agent-spec.md`; section refs (§) point
-there. Read this file before changing code.
+it reports back **in the same thread**. Section refs (§) point to the design spec.
 
 ## 0. What this is — and is NOT
 

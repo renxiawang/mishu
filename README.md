@@ -161,6 +161,4 @@ src/
 **Phase 1 (local, single-user, macOS Apple silicon)** — verified end-to-end against real Slack + sbx +
 Codex: mention → isolated sandbox → repo clone → headless codex → reply in-thread, with deterministic
 sandbox naming, per-thread `~/.agent-state` ledger + session resume, idle/running/pending coalescing,
-and always-on boundary logging. The design spec lives at
-`.context/attachments/2PRioL/slack-coding-agent-spec.md`; the phased roadmap (ergonomics → teams →
-cloud) is §8 there.
+and always-on boundary logging. The phased roadmap runs ergonomics → teams → cloud.
