@@ -1,7 +1,9 @@
 import {
+  CLAUDE_LOGIN_SANDBOX,
   credentialService,
   detectMissingCredential,
   ensureOnboarded,
+  loginSandbox,
   onboardingInstructions,
   parseAgent,
   setupCommand,
@@ -45,10 +47,10 @@ describe("onboardingInstructions", () => {
     expect(text).toContain("sbx secret set -g openai --oauth");
   });
 
-  it("guides Claude through the one-command login sandbox (/login)", () => {
+  it("guides Claude through the named login sandbox (/login)", () => {
     const text = onboardingInstructions("claude");
     expect(text).toContain("npm run setup");
-    expect(text).toContain("sbx run claude");
+    expect(text).toContain(CLAUDE_LOGIN_SANDBOX);
     expect(text).toContain("/login");
   });
 });
@@ -58,9 +60,16 @@ describe("setupCommand", () => {
     expect(setupCommand("codex")).toEqual(["secret", "set", "-g", "openai", "--oauth"]);
   });
 
-  it("claude: in-sandbox login, not an (unsupported) anthropic --oauth", () => {
-    expect(setupCommand("claude")).toEqual(["run", "claude"]);
+  it("claude: a named throwaway sandbox, not an (unsupported) anthropic --oauth", () => {
+    expect(setupCommand("claude")).toEqual(["run", "--name", CLAUDE_LOGIN_SANDBOX, "claude"]);
     expect(setupCommand("claude")).not.toContain("--oauth");
+  });
+});
+
+describe("loginSandbox", () => {
+  it("names the throwaway sandbox for Claude, none for Codex", () => {
+    expect(loginSandbox("claude")).toBe(CLAUDE_LOGIN_SANDBOX);
+    expect(loginSandbox("codex")).toBeNull();
   });
 });
 

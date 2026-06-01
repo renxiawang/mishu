@@ -14,6 +14,7 @@ import {
   type Agent,
   credentialService,
   detectMissingCredential,
+  loginSandbox,
   parseAgent,
   setupCommand,
 } from "./onboarding.js";
@@ -100,6 +101,17 @@ async function main(): Promise<void> {
     console.error(`\n✗ '${service}' still isn't configured. Re-run 'npm run setup' to try again.`);
     process.exit(1);
   }
+
+  // Tidy up the throwaway login sandbox (Claude only) — best-effort; never fail over it.
+  const login = loginSandbox(agent);
+  if (login !== null) {
+    try {
+      await provider.destroy({ name: login });
+    } catch {
+      console.log(`(Leftover login sandbox '${login}' — remove it with: sbx rm --force ${login})`);
+    }
+  }
+
   console.log(`\n✓ '${service}' configured — Mishu is ready (agent=${agent}).`);
   console.log(
     "Start it with:  MISHU_REPO=/path/to/repo node --env-file=.env dist/cli/index.js --sandbox=sbx ./data",

@@ -19,16 +19,25 @@ export function credentialService(agent: Agent): string {
   return agent === "codex" ? "openai" : "anthropic";
 }
 
+/** The throwaway sandbox `npm run setup` creates for Claude's `/login`, then removes. */
+export const CLAUDE_LOGIN_SANDBOX = "mishu-login";
+
 /**
  * The interactive `sbx` command (argv after the `sbx` bin) that establishes the
  * agent's credential — what `npm run setup` runs (§4.8). Codex has a one-shot
- * OAuth command; Claude has no `anthropic --oauth`, so it logs in inside a
- * sandbox (`sbx run claude` → /login) and sbx captures the credential host-side.
+ * OAuth command; Claude has no `anthropic --oauth`, so it logs in inside a named
+ * throwaway sandbox (`sbx run --name mishu-login claude` → /login) and sbx
+ * captures the credential host-side; setup removes the sandbox afterward.
  */
 export function setupCommand(agent: Agent): string[] {
   return agent === "codex"
     ? ["secret", "set", "-g", credentialService(agent), "--oauth"]
-    : ["run", "claude"];
+    : ["run", "--name", CLAUDE_LOGIN_SANDBOX, "claude"];
+}
+
+/** The throwaway login sandbox `setupCommand` creates (to remove after), or null (Codex). */
+export function loginSandbox(agent: Agent): string | null {
+  return agent === "claude" ? CLAUDE_LOGIN_SANDBOX : null;
 }
 
 /** True if `sbx secret ls` shows no credential for the agent's service. */
@@ -61,12 +70,13 @@ export function onboardingInstructions(agent: Agent): string {
     "  Easiest:  npm run setup   (walks you through it)",
     "",
     "  …or do it manually:",
-    "  1. Run:  sbx run claude",
+    `  1. Run:  sbx run --name ${CLAUDE_LOGIN_SANDBOX} claude`,
     "  2. In the session type /login, finish the browser sign-in, then exit.",
     `  3. Re-run once 'sbx secret ls' shows '${service} (oauth configured)'.`,
+    `  4. (optional) sbx rm --force ${CLAUDE_LOGIN_SANDBOX}   # the login sandbox is throwaway`,
     "",
     "(The credential is host-side and proxy-injected — it never enters a sandbox, §4.7.",
-    " There's no 'anthropic --oauth'; the login sandbox is throwaway — 'sbx rm --force claude' clears it.)",
+    " There's no 'anthropic --oauth' — login happens inside the sandbox above.)",
   ].join("\n");
 }
 
