@@ -46,6 +46,10 @@ sbx secret set -g openai --oauth   # ChatGPT subscription (browser sign-in)
 sbx secret ls                      # should show: openai (… configured)
 ```
 
+> **Prefer a guided flow?** After `npm install` (below), `npm run setup` honors `MISHU_AGENT`
+> (`codex`|`claude`), checks the credential, and walks you through the browser OAuth (Codex) or
+> in-sandbox `/login` (Claude). Mishu prints the same one-liner if it starts without one.
+
 ### 2. Slack app (Socket Mode)
 
 Never made a Slack app? Follow these steps:
