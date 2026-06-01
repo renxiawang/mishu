@@ -8,11 +8,13 @@
  * onboarding.ts; this file is the thin I/O shell.
  */
 import { spawnSync } from "node:child_process";
+import { createInterface } from "node:readline/promises";
 import { SbxProvider } from "../sandbox/sbx-provider.js";
 import {
   type Agent,
   credentialService,
   detectMissingCredential,
+  parseAgent,
   setupCommand,
 } from "./onboarding.js";
 
@@ -39,8 +41,26 @@ async function credentialPresent(
   return false;
 }
 
+/** MISHU_AGENT if set; else prompt on a TTY; else default codex (non-interactive). */
+async function resolveAgent(): Promise<Agent> {
+  const fromEnv = parseAgent(process.env.MISHU_AGENT);
+  if (fromEnv !== null) {
+    return fromEnv;
+  }
+  if (process.stdin.isTTY !== true) {
+    return "codex";
+  }
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question("Which agent? [codex/claude] (default: codex): ");
+    return parseAgent(answer.trim().toLowerCase()) ?? "codex";
+  } finally {
+    rl.close();
+  }
+}
+
 async function main(): Promise<void> {
-  const agent: Agent = process.env.MISHU_AGENT === "claude" ? "claude" : "codex";
+  const agent = await resolveAgent();
   const service = credentialService(agent);
   const provider = new SbxProvider({ createOptions: { agent } });
 
@@ -48,6 +68,16 @@ async function main(): Promise<void> {
   if (await credentialPresent(provider, agent, 1)) {
     console.log(`✓ '${service}' is already configured in sbx — Mishu is ready (agent=${agent}).`);
     return;
+  }
+
+  // The auth flow is interactive (browser sign-in / `/login`); don't launch it
+  // headlessly (it would hang waiting on a terminal that isn't there).
+  if (process.stdin.isTTY !== true) {
+    console.error(
+      `'${service}' isn't configured for ${agent}, and setup is interactive — ` +
+        "run 'npm run setup' directly in a terminal.",
+    );
+    process.exit(1);
   }
 
   // Run the interactive auth flow with the terminal attached.
