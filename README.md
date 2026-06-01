@@ -1,12 +1,13 @@
-# Slack Coding Agent
+# Mishu
 
-**Mention a bot in a Slack thread — a real coding agent does the work in an isolated sandbox with
-your repo and credentials, and replies in the same thread.** Follow-up mentions continue the same
-session; ask it to open a PR and it ships the work itself.
+**Mishu is a coding agent that lives in your team's chat.** Mention it in a thread — a real coding
+agent does the work in an isolated sandbox with your repo and credentials, and replies in the same
+thread. Follow-up mentions continue the same session; ask it to open a PR and it ships the work itself.
 
-It's plumbing, not a chatbot: every thread maps 1:1 to its own microVM sandbox and coding-agent
-session, and the router itself runs no LLM — it just relays your thread to a coding-agent CLI (Codex)
-and relays the result back.
+It works in your team's communication platform — **Slack today**, more later. It's plumbing, not a
+chatbot: every thread maps 1:1 to its own microVM sandbox and coding-agent session, and the router
+itself runs no LLM — it just relays your thread to a coding-agent CLI (Codex or Claude Code) and
+relays the result back.
 
 ---
 
@@ -80,14 +81,14 @@ APP_SLACK_BOT_TOKEN=xoxb-…   # step 6 — bot user OAuth token
 ```bash
 npm install
 npm run build
-SCA_REPO=/path/to/your/repo \
+MISHU_REPO=/path/to/your/repo \
   node --env-file=.env dist/cli/index.js --sandbox=sbx ./data
 ```
 
 On first use the bot checks `sbx secret ls`; if the agent's credential is missing it prints the exact
 setup steps and exits. Once it prints `listening …`, **`@mention` it in your channel** and it goes to
-work. Optional env: `SCA_AGENT=codex|claude` (default codex), `SCA_LOG_LEVEL=summary|verbose`,
-`SCA_BOT_USER=U…`.
+work. Optional env: `MISHU_AGENT=codex|claude` (default codex), `MISHU_LOG_LEVEL=summary|verbose`,
+`MISHU_BOT_USER=U…`.
 
 > To let the agent **push / open PRs**, also give it a repo-scoped GitHub token:
 > `sbx secret set -g github` (prefer a fine-grained PAT scoped to the target repo).

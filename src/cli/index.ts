@@ -3,7 +3,7 @@
  * Composition root (spec §3, §4.8). Wires the three seams + Router behind the
  * onboarding gate, then starts the Socket Mode ingress:
  *
- *   slack-coding-agent --sandbox=sbx ./data
+ *   mishu --sandbox=sbx ./data
  *
  * See args.ts USAGE for the environment. The router is plumbing — no LLM here.
  */
@@ -44,8 +44,8 @@ async function run(args: Args): Promise<void> {
     console.error(`Unsupported --sandbox=${args.sandbox} (v0 supports: sbx)`);
     process.exit(1);
   }
-  const agent: Agent = process.env.SCA_AGENT === "claude" ? "claude" : "codex";
-  const level: LogLevel = process.env.SCA_LOG_LEVEL === "verbose" ? "verbose" : "summary";
+  const agent: Agent = process.env.MISHU_AGENT === "claude" ? "claude" : "codex";
+  const level: LogLevel = process.env.MISHU_LOG_LEVEL === "verbose" ? "verbose" : "summary";
 
   const provider = new SbxProvider({ createOptions: { agent } });
 
@@ -60,10 +60,10 @@ async function run(args: Args): Promise<void> {
 
   const appToken = requireEnv("APP_SLACK_APP_TOKEN");
   const botToken = requireEnv("APP_SLACK_BOT_TOKEN");
-  const repoRef = requireEnv("SCA_REPO");
+  const repoRef = requireEnv("MISHU_REPO");
 
   const logSink = fileLogSink(args.dataDir);
-  const platform = new SlackAdapter({ appToken, botToken, botUserId: process.env.SCA_BOT_USER });
+  const platform = new SlackAdapter({ appToken, botToken, botUserId: process.env.MISHU_BOT_USER });
   const botUser = await platform.whoAmI();
   const backend: CodingBackend =
     agent === "claude" ? new ClaudeBackend(provider) : new CodexBackend(provider);
@@ -84,9 +84,7 @@ async function run(args: Args): Promise<void> {
 
   router.start();
   await platform.start();
-  console.error(
-    `[slack-coding-agent] listening — agent=${agent} repo=${repoRef} data=${args.dataDir}`,
-  );
+  console.error(`[mishu] listening — agent=${agent} repo=${repoRef} data=${args.dataDir}`);
 }
 
 function main(): void {
@@ -97,7 +95,7 @@ function main(): void {
     process.exit(argv.includes("-h") || argv.includes("--help") ? 0 : 1);
   }
   run(args).catch((err: unknown) => {
-    console.error("[slack-coding-agent] fatal:", err);
+    console.error("[mishu] fatal:", err);
     process.exit(1);
   });
 }
