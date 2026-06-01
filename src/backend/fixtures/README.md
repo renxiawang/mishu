@@ -41,18 +41,23 @@ against. The stream is JSONL: a `{"type":"system","subtype":"init",…}` first l
 - `is_error:true` can ship with `subtype:"success"` — so `parseClaudeResult` keys on `is_error`,
   never `subtype`;
 - `captureSessionId`'s `find $HOME/.claude/projects -name '*.jsonl' -printf '%T@\t%p\n'` returns the
-  real transcript (`…/-home-agent-workspace/<session-id>.jsonl`); `parseClaudeSessionFilename` reads
-  the id from that basename.
+  real transcript (`…/<cwd-slug>/<session-id>.jsonl`); `parseClaudeSessionFilename` reads the id from
+  that basename;
+- **end-to-end**: a `--clone` sandbox with a provisioned repo ran turn 1 (created a file via the
+  `Write` tool, `is_error:false`, no approval prompt) then turn 2 `claude -p --resume <id>` recalled a
+  planted codeword from session history — the **same session id across both turns** (no fork).
 
-Fixtures:
+Fixtures (all REAL captured bytes unless noted):
 
+- `claude-stream.jsonl` — **REAL bytes**: a successful turn that created a file (init →
+  `rate_limit_event` → assistant `thinking` → assistant `tool_use` (Write) → `tool_result` →
+  assistant text → `result`, `is_error:false`, `result:"done"`). Exercises the thinking/tool_use skip
+  and the authoritative `result` text; captured with `--dangerously-skip-permissions` (the Write ran
+  with no approval prompt).
 - `claude-error.jsonl` — **REAL bytes**: a fresh turn that reached the API and failed auth
   (`is_error:true`, `result:"Not logged in · Please run /login"`, `subtype:"success"`). The session
   is still created (the init line), so `parseClaudeSessionId` still works and the message is relayed.
-- `claude-stream.jsonl` — a **successful** turn (init → assistant `tool_use` → `tool_result` → final
-  assistant text → `result`). Still a **documented placeholder**: the success path needs an
-  `anthropic` credential to capture live (recapture after `sbx secret set -g anthropic` / `/login`).
-  The parser already handles the real `result`/`assistant` shapes (verified against `claude-error`).
 - `claude-empty.stdout.txt` — the headless empty-output failure mode: 0 bytes (parity with codex §9.14).
-- `claude-session-filename.txt` — a sample `~/.claude/projects/.../<session-id>.jsonl` basename.
-- `claude-find-output.txt` — sample `find … -printf '%T@\t%p\n'` output for newest-session selection.
+- `claude-session-filename.txt` — a sample `<session-id>.jsonl` transcript basename.
+- `claude-find-output.txt` — sample `find … -printf '%T@\t%p\n'` output for newest-session selection
+  (real format/paths; two lines to exercise the mtime tiebreak).
