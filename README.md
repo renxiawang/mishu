@@ -9,6 +9,15 @@ chatbot: every thread maps 1:1 to its own microVM sandbox and coding-agent sessi
 itself runs no LLM — it just relays your thread to a coding-agent CLI (Codex or Claude Code) and
 relays the result back.
 
+**Driving philosophy — work in the open.** People collaborate best in the open, and so should a coding
+agent. A private window only teaches the person at the keyboard; a shared thread teaches everyone
+watching. When the work happens where the whole team can see it, every session is searchable, teachable,
+and compounding — the next person with the same question doesn't have to ask it.
+
+Inspired by [pi-mom](https://www.npmjs.com/package/@mariozechner/pi-mom) and Shopify's
+[River](https://shopify.engineering/under-the-river) — see Tobi Lütke on
+[working in the open](https://x.com/tobi/status/2053121182044451016).
+
 ---
 
 ## What you can do with it
@@ -157,12 +166,3 @@ src/
   cli/       args.ts + onboarding.ts + index.ts (composition root)
   types.ts   shared types
 ```
-
----
-
-## Status
-
-**Phase 1 (local, single-user, macOS Apple silicon)** — verified end-to-end against real Slack + sbx +
-Codex: mention → isolated sandbox → repo clone → headless codex → reply in-thread, with deterministic
-sandbox naming, per-thread `~/.agent-state` ledger + session resume, idle/running/pending coalescing,
-and always-on boundary logging. The phased roadmap runs ergonomics → teams → cloud.
