@@ -1,5 +1,5 @@
 /**
- * Router-guided onboarding (spec §4.8). The router gates first use on the
+ * Router-guided onboarding. The router gates first use on the
  * coding agent's credential being present in sbx, walks the human through the
  * one-time setup, and then runs unattended forever after.
  *
@@ -14,7 +14,7 @@ export function parseAgent(value: string | null | undefined): Agent | null {
   return value === "codex" || value === "claude" ? value : null;
 }
 
-/** The sbx secret service that backs each agent's auth (§4.7). */
+/** The sbx secret service that backs each agent's auth. */
 export function credentialService(agent: Agent): string {
   return agent === "codex" ? "openai" : "anthropic";
 }
@@ -24,7 +24,7 @@ export const CLAUDE_LOGIN_SANDBOX = "mishu-login";
 
 /**
  * The interactive `sbx` command (argv after the `sbx` bin) that establishes the
- * agent's credential — what `npm run setup` runs (§4.8). Codex has a one-shot
+ * agent's credential — what `npm run setup` runs. Codex has a one-shot
  * OAuth command; Claude has no `anthropic --oauth`, so it logs in inside a named
  * throwaway sandbox (`sbx run --name mishu-login claude` → /login) and sbx
  * captures the credential host-side; setup removes the sandbox afterward.
@@ -61,7 +61,7 @@ export function onboardingInstructions(agent: Agent): string {
       "  2. Finish the browser sign-in.",
       `  3. Re-run once 'sbx secret ls' shows '${service} (oauth configured)'.`,
       "",
-      "(The credential is host-side and proxy-injected — it never enters a sandbox, §4.7.)",
+      "(The credential is host-side and proxy-injected — it never enters a sandbox)",
     ].join("\n");
   }
   return [
@@ -75,7 +75,7 @@ export function onboardingInstructions(agent: Agent): string {
     `  3. Re-run once 'sbx secret ls' shows '${service} (oauth configured)'.`,
     `  4. (optional) sbx rm --force ${CLAUDE_LOGIN_SANDBOX}   # the login sandbox is throwaway`,
     "",
-    "(The credential is host-side and proxy-injected — it never enters a sandbox, §4.7.",
+    "(The credential is host-side and proxy-injected — it never enters a sandbox.",
     " There's no 'anthropic --oauth' — login happens inside the sandbox above.)",
   ].join("\n");
 }

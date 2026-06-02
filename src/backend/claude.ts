@@ -3,19 +3,19 @@ import type { CodingBackend, SandboxShellExecutor, TurnResult } from "./index.js
 import { asString, isRecord, newestByMtime, parseJsonlEvents } from "./parsing.js";
 
 /**
- * Claude Code backend — the ONLY place Claude Code's CLI/output format lives
- * (spec §4.5/§4.9). Everything here is pure (off captured bytes) except
+ * Claude Code backend — the ONLY place Claude Code's CLI/output format lives.
+ * Everything here is pure (off captured bytes) except
  * captureSessionId, whose one shell call is injected so the rest stays
  * unit-testable.
  *
- * Verified (spec §4.5/§9): `claude -p --resume <id>` continues the SAME session
+ * Verified: `claude -p --resume <id>` continues the SAME session
  * — id stable across turns, history replayed, surviving sbx stop/restart — so
  * the router captures the id once on turn 1 and resumes with it, exactly like
  * codex.
  *  - `claude -p --output-format stream-json --verbose <nonblocking> [--resume ID] -- PROMPT`
  *  - `--output-format stream-json` REQUIRES `--verbose` in print mode.
- *  - The prompt is a positional (not stdin) so the provider can close stdin
- *    (§9.15); `--` guards a prompt that might start with `-`.
+ *  - The prompt is a positional (not stdin) so the provider can close stdin;
+ *    `--` guards a prompt that might start with `-`.
  *  - The stream's first `{"type":"system","subtype":"init",…}` line carries
  *    `session_id` (parseSessionId reads it live); the final `{"type":"result",…}`
  *    line carries the answer + `is_error`.
@@ -28,7 +28,7 @@ export const CLAUDE_PROJECTS_PATH = "$HOME/.claude/projects";
 /**
  * Non-blocking headless — the analog of codex's `approval_policy=never`: never
  * block on a permission prompt. The sbx microVM is the isolation boundary
- * (Slack content is untrusted, §5/§7), so defense-in-depth is the hypervisor,
+ * (Slack content is untrusted), so defense-in-depth is the hypervisor,
  * not Claude's in-process permission gate. Isolated here so the choice is one
  * edit (`--permission-mode bypassPermissions` is an equivalent newer spelling).
  */
@@ -36,7 +36,7 @@ export const CLAUDE_NONBLOCKING_FLAGS = ["--dangerously-skip-permissions"];
 
 /**
  * Build the turn invocation. `--` guards a prompt that might start with `-`.
- * Prompt is a positional (not stdin) so the provider can close stdin (§9.15).
+ * Prompt is a positional (not stdin) so the provider can close stdin.
  * `--verbose` is mandatory with `--output-format stream-json` in print mode.
  */
 export function claudeTurnArgs(message: string, sessionId?: string | null): string[] {
@@ -70,7 +70,7 @@ function extractAssistantText(event: Record<string, unknown>): string | null {
  * final answer is the `{"type":"result", result, is_error, …}` event; the last
  * assistant text is a fallback if a run ends without one. Empty output ->
  * {"", false}: the headless empty-output failure mode surfaces as a failed turn,
- * not a silent empty reply (parity with codex §9.14). On `is_error` the error
+ * not a silent empty reply (parity with codex). On `is_error` the error
  * text (or the `subtype`, e.g. "error_max_turns") is relayed, still with ok=false.
  */
 export function parseClaudeResult(captured: string): TurnResult {
@@ -143,7 +143,7 @@ export function parseClaudeSessionId(captured: string): string | null {
 
 const SESSION_UUID_RE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i;
 
-/** The session UUID from a `<session-id>.jsonl` transcript filename (§4.5). */
+/** The session UUID from a `<session-id>.jsonl` transcript filename. */
 export function parseClaudeSessionFilename(filename: string): string | null {
   const match = SESSION_UUID_RE.exec(filename);
   return match?.[1] ?? null;
@@ -178,7 +178,7 @@ export class ClaudeBackend implements CodingBackend {
     const { stdout } = await this.executor.execShell(handle, command);
     const newest = newestByMtime(stdout);
     if (newest === null) {
-      throw new Error("claude: no session transcript found to capture the session id (§4.5)");
+      throw new Error("claude: no session transcript found to capture the session id");
     }
     const filename = newest.slice(newest.lastIndexOf("/") + 1);
     const id = parseClaudeSessionFilename(filename);

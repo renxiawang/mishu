@@ -41,7 +41,7 @@ function build(): { router: Router; dispatcher: FakeDispatcher; platform: FakePl
   return { router, dispatcher, platform };
 }
 
-describe("dedupe (§4.1)", () => {
+describe("dedupe", () => {
   it("drops a re-delivered ts (no second dispatch)", async () => {
     const { router, dispatcher } = build();
     await router.onMention(m1);
@@ -50,7 +50,7 @@ describe("dedupe (§4.1)", () => {
   });
 });
 
-describe("idle/running/pending (§4.1)", () => {
+describe("idle/running/pending", () => {
   it("dispatches on the first mention and 👀s it", async () => {
     const { router, dispatcher, platform } = build();
     await router.onMention(m1);
@@ -79,7 +79,7 @@ describe("idle/running/pending (§4.1)", () => {
   });
 });
 
-describe("coalescing (§4.1)", () => {
+describe("coalescing", () => {
   it("N mentions during a turn produce exactly ONE coalesced follow-up (latest trigger)", async () => {
     const { router, dispatcher } = build();
     await router.onMention(m1); // dispatch #1
@@ -105,7 +105,7 @@ describe("coalescing (§4.1)", () => {
   });
 });
 
-describe("atomicity at the finish boundary (§4.1)", () => {
+describe("atomicity at the finish boundary", () => {
   it("a mention landing as a turn finishes is never lost", async () => {
     const { router, dispatcher } = build();
     await router.onMention(m1); // dispatch #1
@@ -122,7 +122,7 @@ describe("atomicity at the finish boundary (§4.1)", () => {
   });
 });
 
-describe("restart (§4.1)", () => {
+describe("restart", () => {
   it("a fresh Router starts idle (no persisted state) and dispatches", async () => {
     const { router, dispatcher } = build();
     await router.onMention(m1);

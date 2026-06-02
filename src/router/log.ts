@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 
 /**
- * Boundary logging (spec §4.9).
+ * Boundary logging.
  *
  * The router logs both edges of every turn at the agent boundary, treating the
  * agent's output as opaque bytes — format-agnostic, so it survives Codex schema
- * changes and catches the agent misbehaving (e.g. silent empty output, §9.14).
+ * changes and catches the agent misbehaving (e.g. silent empty output).
  *
  * - `direction: "in"`  — router -> agent (argv, target session, prompt)
  * - `direction: "out"` — agent -> router (raw stdout/stderr chunks; exit summary)
@@ -15,7 +15,7 @@ import { createHash } from "node:crypto";
  * **verbose** toggle for full raw bytes. Logs are a sink, never read back for
  * correctness, and writes are best-effort — they must never stall or fail a turn.
  * Credentials are proxy-side and never enter argv/prompt, so they are never
- * logged (§4.7).
+ * logged.
  */
 
 export type Direction = "in" | "out" | "router";
@@ -36,10 +36,10 @@ interface EnvelopeBase extends LogContext {
   kind: string;
 }
 
-/** Common envelope + kind-specific payload spread at the top level (§4.9). */
+/** Common envelope + kind-specific payload spread at the top level. */
 export type LogEnvelope = EnvelopeBase & Record<string, unknown>;
 
-/** Router-direction record kinds — the gaps raw agent I/O can't explain (§4.9). */
+/** Router-direction record kinds — the gaps raw agent I/O can't explain. */
 export const RouterKind = {
   MentionReceived: "mention.received",
   MentionDeduped: "mention.deduped",
@@ -109,7 +109,7 @@ function base(ctx: LogContext, ts: string, direction: Direction, kind: string): 
 }
 
 export interface TurnInInput {
-  /** Target session id: null => fresh turn, else resume (§4.5). */
+  /** Target session id: null => fresh turn, else resume. */
   sessionId: string | null;
   argv: string[];
   cwd: string;
@@ -198,7 +198,7 @@ export function createRecordingSink(): LogSink & { records: LogEnvelope[] } {
 /**
  * Serialize each record to a JSONL line and hand it to `writeLine` (which does
  * the actual stdout/file I/O, injected by the composition root). Swallows all
- * errors — a full disk or slow shipper must never stall a turn (§4.9).
+ * errors — a full disk or slow shipper must never stall a turn.
  */
 export function createJsonlSink(writeLine: (line: string) => void): LogSink {
   return {

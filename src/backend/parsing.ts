@@ -2,7 +2,7 @@
  * Shared parsing primitives for coding backends — the agent-AGNOSTIC scaffolding
  * every backend needs to read its CLI's captured bytes. These carry NO agent
  * format knowledge (no event schema, no rollout/transcript naming): that stays
- * in each backend (§3/§4.9). A backend layers its agent-specific interpretation
+ * in each backend. A backend layers its agent-specific interpretation
  * on top (which JSON fields mean what, which glob/regex names a session file).
  */
 

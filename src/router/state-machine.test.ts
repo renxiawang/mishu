@@ -24,7 +24,7 @@ function run(
   return { state, effects };
 }
 
-describe("reduce — every state x event cell (§4.1)", () => {
+describe("reduce — every state x event cell", () => {
   it("idle + mention -> running [ackRunning, dispatchTurn]", () => {
     expect(reduce("idle", mention)).toEqual({
       state: "running",
@@ -62,7 +62,7 @@ describe("reduce — every state x event cell (§4.1)", () => {
   });
 });
 
-describe("coalescing (§4.1)", () => {
+describe("coalescing", () => {
   it("dispatches exactly once per turn regardless of mentions arriving mid-turn", () => {
     // 1 initial mention + 5 mid-turn mentions, then the turn finishes, then the
     // coalesced follow-up finishes. Expect exactly 2 dispatches total.
@@ -87,7 +87,7 @@ describe("coalescing (§4.1)", () => {
     expect(state).toBe("idle");
   });
 
-  it("acks every mention but only dispatches when idle (👀 on each, §4.1)", () => {
+  it("acks every mention but only dispatches when idle (👀 on each)", () => {
     const { effects } = run(INITIAL_STATE, [mention, mention, mention]);
     const acks = effects.filter((e) => e === "ackRunning" || e === "ackPending");
     expect(acks).toHaveLength(3); // one 👀 per mention

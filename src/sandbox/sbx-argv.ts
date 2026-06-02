@@ -1,17 +1,17 @@
 /**
- * Pure argv builders for the `sbx` CLI (spec §4.4/§4.5).
+ * Pure argv builders for the `sbx` CLI.
  *
  * The SandboxProvider I/O shell (sbx-provider.ts) shells out `sbx <argv>`; this
  * file owns the argv construction so it's testable without the daemon. Verified
- * against sbx v0.31.1 — re-check on every upgrade (§9, substrate risk).
+ * against sbx v0.31.1 — re-check on every upgrade (substrate risk).
  *
  * Two load-bearing rules baked in here:
  *  - `--clone` on create: the agent works on a private in-VM clone, never the
- *    live host working tree (§4.4).
+ *    live host working tree.
  *  - `exec` is wrapped in `bash -c`: `sbx exec` runs with no shell and does not
  *    source the sandbox's persistent environment, so the toolchain/agent PATH
- *    may be missing otherwise (§4.5). We also never pass `-i` (the provider
- *    closes stdin so codex can't hang — §9.15).
+ *    may be missing otherwise. We also never pass `-i` (the provider
+ *    closes stdin so codex can't hang).
  */
 
 // ---------------------------------------------------------------------------
@@ -41,7 +41,7 @@ export function shellJoin(argv: string[]): string {
 
 /**
  * Wrap a command so the child gets a pseudo-TTY, mitigating codex's headless
- * empty-output regression (§9.14). util-linux `script` syntax (Linux/in-VM);
+ * empty-output regression. util-linux `script` syntax (Linux/in-VM);
  * confirm live which mitigation we keep.
  */
 export function ptyCommand(command: string): string {
@@ -53,9 +53,9 @@ export function ptyCommand(command: string): string {
 // ---------------------------------------------------------------------------
 
 export interface CreateOptions {
-  /** Agent kind sbx wires auth for. Default "codex" (§4.5). */
+  /** Agent kind sbx wires auth for. Default "codex". */
   agent?: string;
-  /** Private in-VM clone vs the rw bind-mount. Default true — never edit the host tree (§4.4). */
+  /** Private in-VM clone vs the rw bind-mount. Default true — never edit the host tree. */
   clone?: boolean;
   template?: string;
   kits?: string[];
@@ -81,14 +81,14 @@ export function createArgv(name: string, repoRef: string, opts: CreateOptions = 
 export interface ExecOptions {
   env?: Record<string, string>;
   workdir?: string;
-  /** Login shell (`bash -lc`) to source profile-level env if `-c` isn't enough (§4.5). */
+  /** Login shell (`bash -lc`) to source profile-level env if `-c` isn't enough. */
   login?: boolean;
-  /** Wrap the command in a PTY (§9.14). */
+  /** Wrap the command in a PTY. */
   pty?: boolean;
   /**
    * Redirect the in-VM command's stdin from /dev/null (default true).
    *
-   * VERIFIED LIVE (§9.15): `sbx exec` keeps the VM process's stdin open even when
+   * VERIFIED LIVE: `sbx exec` keeps the VM process's stdin open even when
    * the host closes its end, so a headless agent like `codex exec` blocks on
    * "Reading additional input from stdin..." forever. Redirecting stdin from
    * /dev/null IN the VM gives it an immediate EOF. Closing host stdin (the
@@ -101,7 +101,7 @@ export interface ExecOptions {
 /**
  * `sbx exec <name> -- bash -c '<command> < /dev/null'`. `command` is a shell
  * string (build it from an agent argv with shellJoin). No `-i`, and stdin is
- * redirected from /dev/null in-VM so headless agents can't hang (§9.15). The
+ * redirected from /dev/null in-VM so headless agents can't hang. The
  * `--` stops sbx flag parsing so the command's own flags pass through.
  */
 export function execArgv(name: string, command: string, opts: ExecOptions = {}): string[] {
@@ -130,7 +130,7 @@ export function execAgentArgv(name: string, agentArgv: string[], opts: ExecOptio
 }
 
 // ---------------------------------------------------------------------------
-// ls (the registry, §4.1)
+// ls (the registry)
 // ---------------------------------------------------------------------------
 
 export function lsArgv(): string[] {
@@ -196,7 +196,7 @@ export function parseLsJson(stdout: string): SbxListEntry[] {
 }
 
 // ---------------------------------------------------------------------------
-// cp (getFile / putFile, §4.6) / stop / rm
+// cp (getFile / putFile) / stop / rm
 // ---------------------------------------------------------------------------
 
 /** `SANDBOX:PATH` addressing for `sbx cp`. */
@@ -217,7 +217,7 @@ export function rmArgv(names: string[], opts: { force?: boolean } = {}): string[
 }
 
 // ---------------------------------------------------------------------------
-// secret (onboarding/auth detection, §4.7/§4.8)
+// secret (onboarding/auth detection)
 // ---------------------------------------------------------------------------
 
 export function secretLsArgv(): string[] {
@@ -225,7 +225,7 @@ export function secretLsArgv(): string[] {
 }
 
 export interface SecretSetOptions {
-  /** Host-global (shared by every future sandbox). Default true (§4.8). */
+  /** Host-global (shared by every future sandbox). Default true. */
   global?: boolean;
   /** OAuth/browser flow (e.g. `openai --oauth`); else the value is piped via stdin. */
   oauth?: boolean;

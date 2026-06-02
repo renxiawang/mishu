@@ -14,7 +14,7 @@ const base: SlackAppMentionEvent = {
 };
 
 describe("mentionFromEvent", () => {
-  it("a root mention (no thread_ts) uses its own ts as the thread id (§4.1)", () => {
+  it("a root mention (no thread_ts) uses its own ts as the thread id", () => {
     expect(mentionFromEvent(base)).toEqual({
       thread: { channel: "C0ABCDEF", threadTs: "1748600000.500000" },
       ts: "1748600000.500000",

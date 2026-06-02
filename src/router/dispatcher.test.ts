@@ -190,13 +190,13 @@ describe("dispatchTurn — turn 1 happy path", () => {
     expect(at(`create:${SANDBOX}`)).toBeGreaterThanOrEqual(0);
     expect(at("fetch:all")).toBeGreaterThan(at(`create:${SANDBOX}`)); // whole-thread primer
     expect(at("exec")).toBeGreaterThan(at("fetch:all"));
-    // session persisted BEFORE the reply; transcript appended AFTER it (§4.6)
+    // session persisted BEFORE the reply; transcript appended AFTER it
     expect(at("write:session")).toBeGreaterThan(at("exec"));
     expect(at("write:session")).toBeLessThan(at("reply"));
     expect(at("write:transcript.jsonl")).toBeGreaterThan(at("reply"));
     // 👀 -> ✅ swap is last
     expect(t.slice(-2)).toEqual(["-eyes", "+white_check_mark"]);
-    // provisioned the repo and ran the agent IN it (§4.3)
+    // provisioned the repo and ran the agent IN it
     expect(t).toContain("shell:test"); // the `test -d …/.git || git clone …` provision
     expect(b.sandbox.lastCwd).toBe("/home/agent/repo");
   });

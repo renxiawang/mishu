@@ -14,15 +14,15 @@ import {
 import { isHashName, parseSandboxName } from "./sandbox-name.js";
 
 /**
- * Idle eviction without stored timestamps (spec §4.6): periodically `sbx ls` the
- * running sandboxes, reverse each name back to its thread (§4.1), read the last
+ * Idle eviction without stored timestamps: periodically `sbx ls` the
+ * running sandboxes, reverse each name back to its thread, read the last
  * message time from Slack, and `sbx stop` the idle ones. `stop` is lossless and
  * recoverable, so coarse timing is harmless; the router NEVER auto-`rm`s.
  *
  * One Slack call per running sandbox per sweep — fine at v0 scale.
  */
 
-/** sbx's documented idle-eviction window (§4.4). */
+/** sbx's documented idle-eviction window. */
 export const DEFAULT_IDLE_MS = 24 * 60 * 60 * 1000;
 
 /** Slack ts ("secs.micros") → epoch ms. */

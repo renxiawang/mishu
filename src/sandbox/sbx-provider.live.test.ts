@@ -5,7 +5,7 @@ import type { SandboxHandle } from "./index.js";
 import { SbxProvider } from "./sbx-provider.js";
 
 /**
- * Live verification of the sbx I/O seam against a real microVM (spec §9). Gated
+ * Live verification of the sbx I/O seam against a real microVM. Gated
  * by SBX_LIVE=1 (set by `npm run test:live`) and excluded from the default suite
  * + CI — it needs Docker + the sbx daemon. Uses a credential-free `shell`
  * sandbox so it covers exec/cp/$HOME/stop-restart without any agent auth.
@@ -43,7 +43,7 @@ describe.skipIf(!LIVE)("SbxProvider — live shell sandbox", () => {
     }
   });
 
-  it("exec runs an agent argv via bash -c and drains stdout (§4.5/§9.9)", async () => {
+  it("exec runs an agent argv via bash -c and drains stdout", async () => {
     const result = await provider.exec(handle, ["echo", "hi from agent argv"]);
     expect(result.stdout.trim()).toBe("hi from agent argv");
     expect(result.exitCode).toBe(0);
@@ -67,7 +67,7 @@ describe.skipIf(!LIVE)("SbxProvider — live shell sandbox", () => {
     expect(new TextDecoder().decode(got)).toBe("bytes\n");
   });
 
-  it("stop then exec auto-restarts losslessly — in-VM state survives (§4.6)", async () => {
+  it("stop then exec auto-restarts losslessly — in-VM state survives", async () => {
     const home = await provider.homeDir(handle);
     await provider.stop(handle);
     const result = await provider.exec(handle, ["cat", `${home}/.agent-state/session`]);

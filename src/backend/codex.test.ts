@@ -35,7 +35,7 @@ describe("codexTurnArgs", () => {
     expect(argv).not.toContain("-i");
   });
 
-  it("keeps the native sandbox on and approvals non-blocking (§4.5)", () => {
+  it("keeps the native sandbox on and approvals non-blocking", () => {
     const argv = codexTurnArgs("x");
     expect(argv.join(" ")).toContain("sandbox_mode=workspace-write");
     expect(argv.join(" ")).toContain("approval_policy=never");
@@ -69,7 +69,7 @@ describe("parseCodexResult", () => {
     });
   });
 
-  it("flags empty output as a failed turn (§9.14 headless regression)", () => {
+  it("flags empty output as a failed turn (headless regression)", () => {
     expect(parseCodexResult(emptyStream)).toEqual({ finalText: "", ok: false });
     expect(parseCodexResult("")).toEqual({ finalText: "", ok: false });
   });

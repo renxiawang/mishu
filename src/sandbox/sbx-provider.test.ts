@@ -52,7 +52,7 @@ function fakeSpawn(responder: (args: string[]) => Resp): {
 
 const handle: SandboxHandle = { name: "t-C0ABCDEF-1748600000.123456" };
 
-describe("exec — drain, stdin close, streaming (§4.9/§9.15)", () => {
+describe("exec — drain, stdin close, streaming", () => {
   it("wraps argv in bash -c (no -i), drains stdout+stderr, closes stdin, streams chunks", async () => {
     let recorded: string[] = [];
     let stdin: FakeStdin | undefined;

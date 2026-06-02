@@ -12,13 +12,13 @@ Captured live against codex 0.130.0 in an sbx microVM (2026-05-31). The real
 is tolerant of several shapes so it survives version drift.
 
 - `codex-error.jsonl` — **REAL bytes**: a `thread.started` + `turn.started` +
-  `error` + `turn.failed` stream (the run hit the subscription usage limit, §9.7).
+  `error` + `turn.failed` stream (the run hit the subscription usage limit).
   Confirms `parseSessionId` reads `thread_id` and the error message is relayed.
 - `codex-json-stream.jsonl` — a **successful** fresh turn (assistant message). Still
-  a documented placeholder: the live success path was **quota-blocked** (§9.7);
+  a documented placeholder: the live success path was **quota-blocked**;
   recapture with an OpenAI API key or after the limit resets. The parser already
   handles the `item.completed`/`agent_message`/`last_agent_message` shapes.
-- `codex-empty.stdout.txt` — the headless empty-output regression: 0 bytes, exit 0 (§9.14).
+- `codex-empty.stdout.txt` — the headless empty-output regression: 0 bytes, exit 0.
 - `codex-rollout-filename.txt` — a sample `~/.codex/sessions/.../rollout-*.jsonl` filename.
 - `codex-find-output.txt` — sample `find … -printf '%T@\t%p\n'` output for newest-rollout selection.
 
@@ -57,7 +57,7 @@ Fixtures (all REAL captured bytes unless noted):
 - `claude-error.jsonl` — **REAL bytes**: a fresh turn that reached the API and failed auth
   (`is_error:true`, `result:"Not logged in · Please run /login"`, `subtype:"success"`). The session
   is still created (the init line), so `parseClaudeSessionId` still works and the message is relayed.
-- `claude-empty.stdout.txt` — the headless empty-output failure mode: 0 bytes (parity with codex §9.14).
+- `claude-empty.stdout.txt` — the headless empty-output failure mode: 0 bytes (parity with codex).
 - `claude-session-filename.txt` — a sample `<session-id>.jsonl` transcript basename.
 - `claude-find-output.txt` — sample `find … -printf '%T@\t%p\n'` output for newest-session selection
   (real format/paths; two lines to exercise the mtime tiebreak).
