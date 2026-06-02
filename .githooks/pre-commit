@@ -1,0 +1,5 @@
+#!/bin/sh
+# Enforce the single gate — keep the repo green at every commit.
+# Runs Biome (lint+format+organize-imports) + tsc --noEmit + Vitest — all offline.
+# In a genuine pinch, bypass with `git commit --no-verify`.
+exec npm run check
