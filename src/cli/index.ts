@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Composition root (spec §3, §4.8). Wires the three seams + Router behind the
+ * Composition root. Wires the three seams + Router behind the
  * onboarding gate, then starts the Socket Mode ingress:
  *
  *   mishu --sandbox=sbx ./data
@@ -20,7 +20,7 @@ import { SbxProvider } from "../sandbox/sbx-provider.js";
 import { type Args, parseArgs, USAGE } from "./args.js";
 import { type Agent, ensureOnboarded, parseAgent } from "./onboarding.js";
 
-/** Boundary-log sink: the router's stdout + an append-only JSONL file (§4.9). */
+/** Boundary-log sink: the router's stdout + an append-only JSONL file. */
 function fileLogSink(dataDir: string): LogSink {
   mkdirSync(dataDir, { recursive: true });
   const stream = createWriteStream(join(dataDir, "router.log"), { flags: "a" });
@@ -49,7 +49,7 @@ async function run(args: Args): Promise<void> {
 
   const provider = new SbxProvider({ createOptions: { agent } });
 
-  // Onboarding gate (§4.8): require the agent's credential before serving.
+  // Onboarding gate: require the agent's credential before serving.
   const onboarded = await ensureOnboarded(agent, {
     secretLs: () => provider.secretLs(),
     log: (message) => console.error(message),
@@ -78,8 +78,8 @@ async function run(args: Args): Promise<void> {
   });
   const router = new Router(platform, dispatcher, { logSink });
 
-  // Idle eviction: sbx stop (lossless) sandboxes whose threads have gone quiet
-  // (§4.6). Sweep hourly; the router never auto-`rm`s.
+  // Idle eviction: sbx stop (lossless) sandboxes whose threads have gone quiet.
+  // Sweep hourly; the router never auto-`rm`s.
   new IdleSweeper({ sandbox: provider, platform, logSink }).start(60 * 60 * 1000);
 
   router.start();

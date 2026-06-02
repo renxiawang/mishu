@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 /**
  * Default test run: offline unit tests only. Live tests (`*.live.test.ts`,
- * which need the sbx daemon / Docker / creds — spec §9) are excluded here and
+ * which need the sbx daemon / Docker / creds) are excluded here and
  * run via `npm run test:live` (see vitest.live.config.ts).
  */
 export default defineConfig({

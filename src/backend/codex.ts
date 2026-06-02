@@ -3,7 +3,7 @@ import type { CodingBackend, SandboxShellExecutor, TurnResult } from "./index.js
 import { asString, isRecord, newestByMtime, parseJsonlEvents } from "./parsing.js";
 
 /**
- * Codex backend — the ONLY place Codex's CLI/output format lives (spec §4.5/§4.9).
+ * Codex backend — the ONLY place Codex's CLI/output format lives.
  * Everything here is pure (off captured bytes) except captureSessionId, whose
  * one shell call is injected so the rest stays unit-testable.
  *
@@ -15,7 +15,7 @@ import { asString, isRecord, newestByMtime, parseJsonlEvents } from "./parsing.j
  *  - NEVER `--ephemeral` (breaks resume). The `--json` stream's `thread.started`
  *    event carries `thread_id` (= the session id; parseSessionId reads it live).
  *  - codex blocks on stdin headlessly; the provider redirects its stdin from
- *    /dev/null IN the VM (§9.15) — verified live.
+ *    /dev/null IN the VM — verified live.
  */
 
 export const CODEX_HOME = "~/.codex";
@@ -23,9 +23,9 @@ export const CODEX_HOME = "~/.codex";
 export const CODEX_SESSIONS_PATH = "$HOME/.codex/sessions";
 
 /**
- * Non-blocking defense-in-depth (§4.5/§9.8): keep Codex's native sandbox ON
+ * Non-blocking defense-in-depth: keep Codex's native sandbox ON
  * (workspace-write) but never block headless on an approval prompt. Set via `-c`
- * because `resume` lacks `-s`. Exact keys confirmed live (§9.8).
+ * because `resume` lacks `-s`. Exact keys confirmed live.
  */
 export const CODEX_NONBLOCKING_FLAGS = [
   "-c",
@@ -36,7 +36,7 @@ export const CODEX_NONBLOCKING_FLAGS = [
 
 /**
  * Build the turn invocation. `--` guards a prompt/id that might start with `-`.
- * Prompt is a positional (not stdin) so the provider can close stdin (§9.15).
+ * Prompt is a positional (not stdin) so the provider can close stdin.
  */
 export function codexTurnArgs(message: string, sessionId?: string | null): string[] {
   // --skip-git-repo-check: never block headless on codex's trusted-directory
@@ -95,7 +95,7 @@ function extractErrorMessage(event: Record<string, unknown>): string | null {
 /**
  * Interpret the captured `--json` stream into the result to relay. Tolerant of
  * several event shapes (the schema moves between versions) and of non-JSON
- * progress lines. Empty output -> {"", false}: the §9.14 headless regression
+ * progress lines. Empty output -> {"", false}: the headless regression
  * (argv -> 0 bytes, exit 0) surfaces as a failed turn, not a silent empty reply.
  * On a failed turn the codex error message is relayed (e.g. a usage limit),
  * still with ok=false.
@@ -165,7 +165,7 @@ export function parseSessionId(captured: string): string | null {
 
 const ROLLOUT_UUID_RE = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.jsonl$/i;
 
-/** The session UUID embedded in a `rollout-…-<uuid>.jsonl` filename (§4.5). */
+/** The session UUID embedded in a `rollout-…-<uuid>.jsonl` filename. */
 export function parseRolloutId(filename: string): string | null {
   const match = ROLLOUT_UUID_RE.exec(filename);
   return match?.[1] ?? null;
@@ -200,7 +200,7 @@ export class CodexBackend implements CodingBackend {
     const { stdout } = await this.executor.execShell(handle, command);
     const newest = newestByMtime(stdout);
     if (newest === null) {
-      throw new Error("codex: no rollout file found to capture the session id (§4.5)");
+      throw new Error("codex: no rollout file found to capture the session id");
     }
     const filename = newest.slice(newest.lastIndexOf("/") + 1);
     const id = parseRolloutId(filename);

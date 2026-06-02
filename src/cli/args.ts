@@ -1,5 +1,5 @@
 /**
- * CLI argument parsing (pure). Shape mirrors pi-mom's convention (spec §10):
+ * CLI argument parsing (pure). Shape mirrors pi-mom's convention:
  *
  *   mishu --sandbox=<provider> <data-dir>
  *   e.g. mishu --sandbox=sbx ./data

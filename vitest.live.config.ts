@@ -2,7 +2,7 @@ import { defineConfig } from "vitest/config";
 
 /**
  * Live lane — only `*.live.test.ts`, which exercise the real sbx daemon / Docker
- * / Codex (spec §9). NOT part of `npm run check` or CI; run on demand with
+ * / Codex. NOT part of `npm run check` or CI; run on demand with
  * `npm run test:live` once the environment is up (Tier 1, see the plan). Passes
  * with no test files so the script is safe before any live tests exist.
  */

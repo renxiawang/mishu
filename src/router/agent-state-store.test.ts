@@ -65,7 +65,7 @@ describe("AgentStateStore — session id", () => {
 });
 
 describe("AgentStateStore — thread reverse map", () => {
-  it("round-trips the original channel+thread_ts (hash-name fallback, §4.1)", async () => {
+  it("round-trips the original channel+thread_ts (hash-name fallback)", async () => {
     const store = new AgentStateStore(new FakeSandboxFs(), handle);
     expect(await store.readThread()).toBeNull();
     await store.writeThread("C0ABCDEF 1748600000.123456");

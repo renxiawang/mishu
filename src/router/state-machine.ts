@@ -1,16 +1,16 @@
 /**
- * Per-thread coordination state machine (spec §4.1).
+ * Per-thread coordination state machine.
  *
  * Pure, total reducer `(state, event) -> {state, effects}`. No timers, no I/O,
- * no message payload — "Slack is the queue" (§4.1), so the FSM only tracks
+ * no message payload — "Slack is the queue", so the FSM only tracks
  * whether a turn is running and whether one more is pending; the dispatcher
  * recomputes the delta covering every coalesced mention.
  *
- * Held in router memory only (transient bucket, §3): lost on restart, which is
+ * Held in router memory only (transient bucket): lost on restart, which is
  * fine — an in-flight turn is abandoned and re-driven idempotently on the next
  * mention.
  *
- * State table (§4.1):
+ * State table:
  *   idle           + mention      -> running         [ackRunning, dispatchTurn]
  *   running        + mention      -> runningPending  [ackPending]   (set pending, no dispatch)
  *   runningPending + mention      -> runningPending  [ackPending]   (idempotent)
@@ -19,15 +19,15 @@
  *   idle           + turnFinished -> idle            []             (defensive no-op)
  */
 
-/** `runningPending` is the spec's "running + pending". */
+/** `runningPending` means "running + pending". */
 export type ThreadFsmState = "idle" | "running" | "runningPending";
 
 export type FsmEvent = { kind: "mention" } | { kind: "turnFinished" };
 
 /**
  * An instruction for the router to execute. `ackRunning`/`ackPending` both add
- * the 👀 reaction (§4.1) but are distinct so the router can log the dispatch
- * path vs the coalesce path differently (§4.9).
+ * the 👀 reaction but are distinct so the router can log the dispatch
+ * path vs the coalesce path differently.
  */
 export type FsmEffect = "ackRunning" | "ackPending" | "dispatchTurn" | "goIdle";
 

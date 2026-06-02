@@ -20,7 +20,7 @@ import {
 } from "./sbx-argv.js";
 
 /**
- * SandboxProvider over the `sbx` CLI (spec §4.4) — the I/O shell. All argv
+ * SandboxProvider over the `sbx` CLI — the I/O shell. All argv
  * construction lives in sbx-argv.ts; this file only spawns and drains. The
  * spawn fn is injected so the streaming/stdin/exit handling is unit-testable
  * without the daemon.
@@ -48,9 +48,9 @@ export interface SbxProviderConfig {
   spawnFn?: SpawnFn;
   bin?: string;
   createOptions?: CreateOptions;
-  /** `bash -lc` to source profile-level env if `-c` isn't enough (§4.5/§9.9). */
+  /** `bash -lc` to source profile-level env if `-c` isn't enough. */
   login?: boolean;
-  /** Wrap the agent command in a PTY (codex empty-output mitigation, §9.14). */
+  /** Wrap the agent command in a PTY (codex empty-output mitigation). */
   pty?: boolean;
 }
 
@@ -71,7 +71,7 @@ export class SbxProvider implements SandboxProvider {
     this.pty = config.pty ?? false;
   }
 
-  /** Spawn `sbx <argv>`, drain stdout+stderr to exit, close stdin (§9.15). */
+  /** Spawn `sbx <argv>`, drain stdout+stderr to exit, close stdin. */
   private run(argv: string[], opts: ExecCallOptions = {}): Promise<ExecResult> {
     return new Promise((resolve, reject) => {
       const child = this.spawnFn(this.bin, argv);
@@ -89,7 +89,7 @@ export class SbxProvider implements SandboxProvider {
       });
       child.on("error", reject);
       child.on("close", (code) => resolve({ stdout, stderr, exitCode: code ?? -1 }));
-      // Close stdin so a headless agent can't hang waiting on it (§9.15).
+      // Close stdin so a headless agent can't hang waiting on it.
       if (opts.stdin !== undefined) {
         child.stdin?.write(opts.stdin);
       }
@@ -142,7 +142,7 @@ export class SbxProvider implements SandboxProvider {
     return parseLsJson(stdout).map((entry) => ({ name: entry.name }));
   }
 
-  /** Raw `sbx secret ls` output — drives the onboarding credential check (§4.8). */
+  /** Raw `sbx secret ls` output — drives the onboarding credential check. */
   async secretLs(): Promise<string> {
     const { stdout } = await this.runOrThrow(secretLsArgv(), "secret ls");
     return stdout;

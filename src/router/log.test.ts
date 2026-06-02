@@ -26,7 +26,7 @@ const ctx: LogContext = {
 const TS = "2026-05-31T00:00:00.000Z";
 
 describe("envelope shape & correlation fields", () => {
-  it("every builder carries the common envelope (§4.9)", () => {
+  it("every builder carries the common envelope", () => {
     const env = buildRouterEvent(ctx, TS, RouterKind.MentionReceived, { user: "U1" });
     expect(env).toMatchObject({
       ts: TS,
@@ -137,7 +137,7 @@ describe("safeguards", () => {
     expect(capArgv(["short", "z".repeat(500)], 10)[1]).toContain("…");
   });
 
-  it("never emits credential-shaped fields (§4.7)", () => {
+  it("never emits credential-shaped fields", () => {
     const env = buildTurnIn(ctx, TS, {
       sessionId: null,
       argv: ["codex"],

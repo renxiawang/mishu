@@ -1,13 +1,13 @@
 import type { ThreadMessage } from "../types.js";
 
 /**
- * Per-thread durable state — pure layer (spec §4.2/§4.6).
+ * Per-thread durable state — pure layer.
  *
  * The thread's seen-message ledger is `~/.agent-state/transcript.jsonl` in the
  * sandbox: one JSON line per message the agent has been fed, `{ts, user, text}`.
  * It is both the **high-water mark** (largest `ts`) and a durable audit of
  * exactly what the agent saw. This file holds only the *pure* logic over message
- * arrays; the sbx-backed read/write store lives in agent-state.store.ts (§4.6).
+ * arrays; the sbx-backed read/write store lives in agent-state.store.ts.
  *
  * Paths are relative to the sandbox user's `$HOME` (resolved by the store).
  */
@@ -18,7 +18,7 @@ export const THREAD_PATH = `${AGENT_STATE_DIR}/thread`;
 
 /**
  * Largest `ts` in the ledger, or `null` when empty (which is how the router
- * knows it's turn 1 — §4.2).
+ * knows it's turn 1).
  *
  * Slack `ts` is `"<10-digit secs>.<6-digit micros>"`, zero-padded, so plain
  * string comparison is chronological (verified by test). This holds until the
@@ -41,15 +41,15 @@ export interface DeltaOptions {
 
 /**
  * The messages to feed this turn: everything after the high-water mark, minus
- * the bot's own posts (§4.2).
+ * the bot's own posts.
  *
  * - Turn 1 (`hwm === null`): the whole thread minus bot posts — the primer.
  * - Follow-up: messages with `ts > hwm` minus bot posts — the exact delta.
  *
- * Note on §4.2's "minus the trigger": the *previous* turn's trigger is already
+ * On "minus the trigger": the *previous* turn's trigger is already
  * excluded by `ts > hwm` (it's in the ledger). The *current* trigger carries the
- * user's new request and MUST be included — §4.1 says "the delta covers all of
- * them [the mentions]". So the only author we drop is the bot itself.
+ * user's new request and MUST be included — the delta covers all of
+ * them [the mentions]. So the only author we drop is the bot itself.
  */
 export function computeDelta(
   fetched: ThreadMessage[],

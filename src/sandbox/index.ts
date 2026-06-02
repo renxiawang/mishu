@@ -1,15 +1,15 @@
 /**
- * SandboxProvider — isolated execution-environment lifecycle. See spec §3, §4.4.
+ * SandboxProvider — isolated execution-environment lifecycle.
  *
  * v0: Docker Sandboxes (sbx) microVM. `exec` is the transport the router logs
- * at the agent boundary (§4.9); commands should be wrapped in `bash -c` so the
- * sandbox's persistent environment is loaded (§4.5).
+ * at the agent boundary; commands should be wrapped in `bash -c` so the
+ * sandbox's persistent environment is loaded.
  *
  * Fallback: plain Docker + iptables egress. Cloud/teams later: e2b / Daytona /
  * self-hosted Firecracker.
  */
 export interface SandboxHandle {
-  /** Deterministic, reversible name = f(threadId). See spec §4.1. */
+  /** Deterministic, reversible name = f(threadId). */
   name: string;
 }
 
@@ -19,13 +19,13 @@ export interface ExecResult {
   exitCode: number;
 }
 
-/** Streaming options for a single exec call (§4.1/§4.9). */
+/** Streaming options for a single exec call. */
 export interface ExecCallOptions {
-  /** Receive raw stdout/stderr chunks as they arrive (the router logs them, §4.9). */
+  /** Receive raw stdout/stderr chunks as they arrive (the router logs them). */
   onChunk?: (stream: "stdout" | "stderr", chunk: string) => void;
-  /** Optional input to write before closing stdin. Stdin is always closed (§9.15). */
+  /** Optional input to write before closing stdin. Stdin is always closed. */
   stdin?: string;
-  /** Working directory inside the sandbox (e.g. the provisioned repo clone, §4.3). */
+  /** Working directory inside the sandbox (e.g. the provisioned repo clone). */
   cwd?: string;
 }
 
@@ -34,8 +34,8 @@ export interface SandboxProvider {
 
   /**
    * Drive the agent CLI per turn (argv wrapped in `bash -c`); the router streams
-   * and logs this raw output (§4.9). The reader drains stdout+stderr to exit and
-   * closes stdin (§9.15).
+   * and logs this raw output. The reader drains stdout+stderr to exit and
+   * closes stdin.
    */
   exec(handle: SandboxHandle, argv: string[], opts?: ExecCallOptions): Promise<ExecResult>;
 
@@ -48,6 +48,6 @@ export interface SandboxProvider {
   stop(handle: SandboxHandle): Promise<void>;
   destroy(handle: SandboxHandle): Promise<void>;
 
-  /** The registry — `sbx ls`. See spec §4.1, §4.6. */
+  /** The registry — `sbx ls`. */
   list(): Promise<SandboxHandle[]>;
 }

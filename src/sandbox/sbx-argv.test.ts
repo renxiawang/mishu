@@ -19,7 +19,7 @@ import {
 } from "./sbx-argv.js";
 
 describe("createArgv", () => {
-  it("always uses --clone and the codex agent by default (§4.4)", () => {
+  it("always uses --clone and the codex agent by default", () => {
     expect(createArgv("t-C0-1.2", "/repo")).toEqual([
       "create",
       "--clone",
@@ -55,7 +55,7 @@ describe("createArgv", () => {
 });
 
 describe("execArgv", () => {
-  it("wraps in `bash -c`, uses `--`, redirects stdin from /dev/null, no -i (§4.5/§9.15)", () => {
+  it("wraps in `bash -c`, uses `--`, redirects stdin from /dev/null, no -i", () => {
     expect(execArgv("box", "codex exec --json")).toEqual([
       "exec",
       "box",
@@ -71,7 +71,7 @@ describe("execArgv", () => {
     expect(execArgv("box", "cmd", { stdinFromNull: false }).at(-1)).toBe("cmd");
   });
 
-  it("supports login shell, workdir, env, and the PTY mitigation (§9.14)", () => {
+  it("supports login shell, workdir, env, and the PTY mitigation", () => {
     expect(execArgv("box", "cmd", { login: true })).toContain("-lc");
     expect(execArgv("box", "cmd", { workdir: "/repo" })).toEqual([
       "exec",

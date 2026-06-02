@@ -17,7 +17,7 @@ const SAMPLES: ThreadId[] = [
 ];
 
 describe("sandboxName", () => {
-  it("encodes as t-<channel>-<secs>-<micros>, with '.' -> '-' (hostname-safe, §4.1)", () => {
+  it("encodes as t-<channel>-<secs>-<micros>, with '.' -> '-' (hostname-safe)", () => {
     expect(sandboxName({ channel: "C0ABCDEF", threadTs: "1748600000.123456" })).toBe(
       "t-C0ABCDEF-1748600000-123456",
     );

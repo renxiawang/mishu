@@ -10,7 +10,7 @@ import {
 } from "./onboarding.js";
 
 describe("credentialService", () => {
-  it("maps agents to their sbx secret service (§4.7)", () => {
+  it("maps agents to their sbx secret service", () => {
     expect(credentialService("codex")).toBe("openai");
     expect(credentialService("claude")).toBe("anthropic");
   });
@@ -41,7 +41,7 @@ describe("detectMissingCredential", () => {
 });
 
 describe("onboardingInstructions", () => {
-  it("guides Codex through the OAuth path the user chose (§4.8)", () => {
+  it("guides Codex through the OAuth path the user chose", () => {
     const text = onboardingInstructions("codex");
     expect(text).toContain("npm run setup");
     expect(text).toContain("sbx secret set -g openai --oauth");

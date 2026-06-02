@@ -20,13 +20,13 @@ import {
 import { chooseSandboxName } from "./sandbox-name.js";
 
 /**
- * The one-turn lifecycle (spec §4.1/§4.5/§4.9) — the keystone that ties the
+ * The one-turn lifecycle — the keystone that ties the
  * three seams together for a single turn. Order matters:
  *
  *   resolve-or-create sandbox (deterministic name) → turn-1-vs-resume (session
- *   file, §4.5) → fetch primer/delta (§4.2) → exec (reader drains stdout+stderr,
- *   stays attached, logs at the boundary §4.9) → parseResult → write-after-success
- *   (persist session BEFORE posting, append transcript AFTER the reply, §4.6) →
+ *   file) → fetch primer/delta → exec (reader drains stdout+stderr,
+ *   stays attached, logs at the boundary) → parseResult → write-after-success
+ *   (persist session BEFORE posting, append transcript AFTER the reply) →
  *   relay → swap 👀→✅/❌.
  *
  * Reactions: the router adds 👀 on every mention; the dispatcher swaps the
@@ -41,11 +41,11 @@ export interface DispatcherDeps {
   backend: CodingBackend;
   repoRef: string;
   logSink?: LogSink;
-  /** The bot's own Slack user id; its posts never re-enter the delta (§4.2). */
+  /** The bot's own Slack user id; its posts never re-enter the delta. */
   botUser?: string;
   level?: LogLevel;
   failureMessage?: string;
-  /** Optional in-VM bootstrap run once after create (branch off base, §4.3; confirm live). */
+  /** Optional in-VM bootstrap run once after create (branch off base; confirm live). */
   provisionScript?: string;
   now?: () => number;
   newTurnId?: () => string;
@@ -54,11 +54,11 @@ export interface DispatcherDeps {
 const DEFAULT_FAILURE =
   "⚠️ The coding agent didn't return a result for that turn. Your request is still queued — mention me again to retry.";
 
-/** sbx --clone exposes the read-only source repo here (verified live; §9.13). */
+/** sbx --clone exposes the read-only source repo here (verified live). */
 const SBX_CLONE_SOURCE = "/run/sandbox/source";
 /** In-VM writable clone dir the agent works in (under $HOME, outside ~/.agent-state). */
 const IN_VM_REPO_DIR = "repo";
-/** Non-base branch the agent's work starts on (§4.3). */
+/** Non-base branch the agent's work starts on. */
 const WORK_BRANCH = "slack/work";
 
 /** Render messages into a single prompt. Plumbing, not authorship — no editorializing. */
@@ -107,7 +107,7 @@ export class Dispatcher {
       const handle = await this.resolveSandbox(thread, name, ctx);
       const store = new AgentStateStore(this.sandbox, handle);
 
-      // Turn-1 vs resume is the session file's presence (§4.5).
+      // Turn-1 vs resume is the session file's presence.
       const sessionId = await store.readSessionId();
       const delta = await this.assembleDelta(thread, store, sessionId);
       if (delta.length === 0) {
@@ -119,7 +119,7 @@ export class Dispatcher {
       const prompt = formatPrompt(delta);
       const argv = this.backend.turnArgs(prompt, sessionId ?? undefined);
 
-      // Provision a writable repo clone and run the agent IN it (§4.3) — verified
+      // Provision a writable repo clone and run the agent IN it — verified
       // live: without this codex exits "Not inside a trusted directory".
       const home = await this.sandbox.homeDir(handle);
       const repoPath = `${home}/${IN_VM_REPO_DIR}`;
@@ -162,14 +162,14 @@ export class Dispatcher {
         });
         // Relay the agent's own error (e.g. a usage limit) when it gave one,
         // else a generic message. Either way the transcript is NOT appended, so
-        // the request re-feeds on the next mention (§4.6).
+        // the request re-feeds on the next mention.
         const reply = result.finalText.trim() !== "" ? result.finalText : this.failureMessage;
         await this.relay(thread, reply);
         await this.swapReaction(trigger, false);
         return { ok: false };
       }
 
-      // Write-after-success (§4.6): persist the session id BEFORE posting (so a
+      // Write-after-success: persist the session id BEFORE posting (so a
       // crash still resumes), append the transcript AFTER the reply (so a failed
       // post re-feeds — at-least-once).
       if (sessionId === null) {
@@ -189,7 +189,7 @@ export class Dispatcher {
     }
   }
 
-  /** Find the thread's sandbox by deterministic name, or create + seed it (§4.1/§4.3). */
+  /** Find the thread's sandbox by deterministic name, or create + seed it. */
   private async resolveSandbox(
     thread: ThreadId,
     name: string,
@@ -201,7 +201,7 @@ export class Dispatcher {
     }
     this.router(ctx, RouterKind.SandboxCreate, { name });
     const handle = await this.sandbox.create(name, this.repoRef);
-    // Reverse-map the full id so a hash-named sandbox is reversible (§4.1/§4.6).
+    // Reverse-map the full id so a hash-named sandbox is reversible.
     await new AgentStateStore(this.sandbox, handle).writeThread(
       `${thread.channel} ${thread.threadTs}`,
     );
@@ -213,8 +213,8 @@ export class Dispatcher {
 
   /**
    * Clone the read-only `--clone` source into a writable repo dir and seed a
-   * non-base branch (§4.3). Idempotent — runs cheaply each turn, clones once.
-   * The agent later points origin at the real remote + pushes when asked (§4.6).
+   * non-base branch. Idempotent — runs cheaply each turn, clones once.
+   * The agent later points origin at the real remote + pushes when asked.
    */
   private async provisionRepo(
     handle: SandboxHandle,
@@ -250,7 +250,7 @@ export class Dispatcher {
     await this.platform.postReply(thread, text);
   }
 
-  /** Best-effort 👀→✅/❌ swap on the trigger (reactions never fail a turn, §4.1). */
+  /** Best-effort 👀→✅/❌ swap on the trigger (reactions never fail a turn). */
   private async swapReaction(trigger: Mention, ok: boolean): Promise<void> {
     try {
       await this.platform.removeReaction(trigger.thread.channel, trigger.ts, "eyes");

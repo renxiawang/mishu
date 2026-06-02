@@ -10,13 +10,13 @@ import {
 } from "./slack-map.js";
 
 /**
- * Slack PlatformAdapter via Socket Mode + Web API (spec §4.1) — the I/O shell.
+ * Slack PlatformAdapter via Socket Mode + Web API — the I/O shell.
  * The mapping logic lives in slack-map.ts; this only wires the SDKs.
  *
- * Discipline (§4.1): the Socket Mode envelope is ACKed immediately on receipt,
+ * Discipline: the Socket Mode envelope is ACKed immediately on receipt,
  * BEFORE any work, and the handler runs async to the ACK; retries
  * (retry_num > 0) are dropped so a slow turn can't trigger double-dispatch.
- * Acks to the user are reactions, not replies (§4.1/§4.2).
+ * Acks to the user are reactions, not replies.
  */
 
 export interface SlackAdapterConfig {
@@ -56,7 +56,7 @@ export class SlackAdapter implements PlatformAdapter {
     this.handler = handler;
   }
 
-  /** Resolve (and cache) the bot's own user id via auth.test (§4.2 self-filtering). */
+  /** Resolve (and cache) the bot's own user id via auth.test (self-filtering). */
   async whoAmI(): Promise<string | undefined> {
     if (this.botUserId === undefined) {
       const auth = await this.web.auth.test();
@@ -69,10 +69,10 @@ export class SlackAdapter implements PlatformAdapter {
   async start(): Promise<void> {
     await this.whoAmI();
     this.socket.on("app_mention", (args: SocketModeEventArgs) => {
-      // ACK at the WebSocket layer on receipt — never block the ~3s deadline (§4.1).
+      // ACK at the WebSocket layer on receipt — never block the ~3s deadline.
       void args.ack();
       if (typeof args.retry_num === "number" && args.retry_num > 0) {
-        return; // a retry of an event we already accepted (§4.1)
+        return; // a retry of an event we already accepted
       }
       const mention = mentionFromEvent(args.event, this.botUserId);
       if (mention !== null && this.handler !== null) {
@@ -121,7 +121,7 @@ export class SlackAdapter implements PlatformAdapter {
       await this.web.reactions.add({ channel, timestamp: ts, name: emoji });
     } catch (err) {
       if (slackErrorCode(err) !== "already_reacted") {
-        throw err; // idempotent: re-adding our own 👀 is fine (§4.1)
+        throw err; // idempotent: re-adding our own 👀 is fine
       }
     }
   }

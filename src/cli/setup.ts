@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `npm run setup` — one-command onboarding (spec §4.8). Checks the selected
+ * `npm run setup` — one-command onboarding. Checks the selected
  * agent's sbx credential and, if it's missing, runs the interactive auth flow
  * (browser OAuth for Codex; `sbx run claude` → /login for Claude) with the
  * terminal attached, then confirms. Idempotent: re-running once configured just

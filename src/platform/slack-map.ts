@@ -1,7 +1,7 @@
 import type { Mention, ThreadMessage } from "../types.js";
 
 /**
- * Pure Slack-event mapping (spec §4.1) — the subtle bits that hold the bugs,
+ * Pure Slack-event mapping — the subtle bits that hold the bugs,
  * isolated from the Socket Mode / Web API I/O so they're unit-testable:
  *  - a root mention uses its own `ts` as the thread id (it opens the thread);
  *    a reply uses the parent `thread_ts`;
@@ -34,7 +34,7 @@ export function mentionFromEvent(event: SlackAppMentionEvent, botUserId?: string
   if (botUserId !== undefined && event.user === botUserId) {
     return null; // our own post
   }
-  // A root mention has no thread_ts; its own ts opens the thread (§4.1).
+  // A root mention has no thread_ts; its own ts opens the thread.
   const threadTs = event.thread_ts ?? event.ts;
   return {
     thread: { channel: event.channel, threadTs },

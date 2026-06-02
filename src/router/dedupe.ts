@@ -1,12 +1,12 @@
 /**
- * Idempotent-dispatch dedupe (spec §4.1).
+ * Idempotent-dispatch dedupe.
  *
  * Immediate Socket Mode ACK stops the retry storm but duplicates still arrive (a
  * lost ACK inside the retry window, or a reconnect race). The router dedupes on
  * the mention's Slack `ts`: a `ts` already accepted is dropped.
  *
  * This is a TTL set keyed by `ts`, sized to cover Slack's ~5-min retry window.
- * It lives in router memory (transient bucket, §3) and is lost on restart, which
+ * It lives in router memory (transient bucket) and is lost on restart, which
  * is fine — retries don't outlive that window. The clock is injected so the TTL
  * is testable without sleeping.
  */
