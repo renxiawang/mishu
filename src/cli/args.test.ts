@@ -1,4 +1,4 @@
-import { parseArgs } from "./args.js";
+import { parseArgs, USAGE } from "./args.js";
 
 describe("parseArgs", () => {
   it("parses --sandbox=<provider> and a data-dir positional", () => {
@@ -23,5 +23,9 @@ describe("parseArgs", () => {
   it("returns null for -h / --help", () => {
     expect(parseArgs(["-h"])).toBeNull();
     expect(parseArgs(["--sandbox=sbx", "./data", "--help"])).toBeNull();
+  });
+
+  it("documents optional sandbox template env", () => {
+    expect(USAGE).toContain("MISHU_SANDBOX_TEMPLATE");
   });
 });
