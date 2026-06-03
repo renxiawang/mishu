@@ -1,5 +1,7 @@
 # Mishu
 
+![Mishu workflow: summon a coding agent in Slack, run it in an sbx sandbox, and continue in the same thread.](./assets/mishu.png)
+
 Mishu is a Slack bot that lets a team run coding-agent work from a shared thread.
 Mention the bot, and it starts a coding-agent CLI inside an isolated `sbx` sandbox, then replies in
 the same thread. Follow-up mentions in that thread resume the same sandbox and agent session.

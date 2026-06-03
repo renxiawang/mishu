@@ -6,6 +6,7 @@
   "license": "MIT",
   "files": [
     "dist",
+    "assets",
     ".env.example",
     "README.md",
     "LICENSE"
