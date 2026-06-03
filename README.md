@@ -93,8 +93,18 @@ When Mishu prints `listening`, mention the bot in Slack.
 | `APP_SLACK_BOT_TOKEN` | Yes | Slack bot user token (`xoxb-...`). |
 | `MISHU_REPO` | Yes | Repo path or ref passed to `sbx create --clone`. |
 | `MISHU_AGENT` | No | `codex` or `claude`; default is `codex`. |
+| `MISHU_SANDBOX_TEMPLATE` | No | Optional `sbx create --template` image. The image must include `bash`, `git`, and the selected agent CLI. |
 | `MISHU_LOG_LEVEL` | No | `summary` or `verbose`; default is `summary`. |
 | `MISHU_BOT_USER` | No | Slack bot user id; resolved with `auth.test` when omitted. |
+
+## Sandbox Governance & Security
+
+Mishu does not manage sandbox egress or network policy in code. When using `sbx` as the sandbox
+provider, configure Docker Sandboxes governance and local policy outside Mishu:
+<https://docs.docker.com/ai/sandboxes/governance/local/>.
+
+If `MISHU_SANDBOX_TEMPLATE` is set, Mishu passes it to `sbx create --template` for future sandbox
+creation. Custom templates must include `bash`, `git`, and the selected agent CLI.
 
 ## Logs
 

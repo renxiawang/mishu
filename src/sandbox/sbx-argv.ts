@@ -33,7 +33,7 @@ export function createArgv(name: string, repoRef: string, opts: CreateOptions = 
     argv.push("--clone");
   }
   argv.push("--name", name);
-  if (template !== undefined) {
+  if (template !== undefined && template !== "") {
     argv.push("--template", template);
   }
   for (const kit of kits) {

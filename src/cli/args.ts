@@ -32,6 +32,7 @@ export const USAGE = [
   "  APP_SLACK_BOT_TOKEN   xoxb-…  bot token",
   "  MISHU_REPO              path to the target git repo (the --clone seed)",
   "  MISHU_AGENT             codex | claude   (default: codex)",
+  "  MISHU_SANDBOX_TEMPLATE  sbx template image (optional)",
   "  MISHU_LOG_LEVEL         summary | verbose (default: summary)",
   "  MISHU_BOT_USER          bot user id (optional; resolved via auth.test otherwise)",
 ].join("\n");

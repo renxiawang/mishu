@@ -18,6 +18,7 @@ import { Dispatcher, Router } from "../router/index.js";
 import { createJsonlSink, type LogLevel, type LogSink } from "../router/log.js";
 import { SbxProvider } from "../sandbox/sbx-provider.js";
 import { type Args, parseArgs, USAGE } from "./args.js";
+import { createOptionsFromEnv } from "./env.js";
 import { type Agent, ensureOnboarded, parseAgent } from "./onboarding.js";
 
 /** Boundary-log sink: the router's stdout + an append-only JSONL file. */
@@ -47,7 +48,7 @@ async function run(args: Args): Promise<void> {
   const agent: Agent = parseAgent(process.env.MISHU_AGENT) ?? "codex";
   const level: LogLevel = process.env.MISHU_LOG_LEVEL === "verbose" ? "verbose" : "summary";
 
-  const provider = new SbxProvider({ createOptions: { agent } });
+  const provider = new SbxProvider({ createOptions: createOptionsFromEnv(agent, process.env) });
 
   // Onboarding gate: require the agent's credential before serving.
   const onboarded = await ensureOnboarded(agent, {

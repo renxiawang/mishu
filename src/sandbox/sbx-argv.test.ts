@@ -52,6 +52,17 @@ describe("createArgv", () => {
       "/repo",
     ]);
   });
+
+  it("omits --template for an empty template value", () => {
+    expect(createArgv("box", "/repo", { template: "" })).toEqual([
+      "create",
+      "--clone",
+      "--name",
+      "box",
+      "codex",
+      "/repo",
+    ]);
+  });
 });
 
 describe("execArgv", () => {
