@@ -15,6 +15,11 @@ describe("parseArgs", () => {
     expect(parseArgs([])).toBeNull();
   });
 
+  it("returns null for extra positionals or unknown flags", () => {
+    expect(parseArgs(["--sandbox=sbx", "./data", "./other"])).toBeNull();
+    expect(parseArgs(["--sandbox=sbx", "--verbose", "./data"])).toBeNull();
+  });
+
   it("returns null for -h / --help", () => {
     expect(parseArgs(["-h"])).toBeNull();
     expect(parseArgs(["--sandbox=sbx", "./data", "--help"])).toBeNull();

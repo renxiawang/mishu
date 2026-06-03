@@ -174,7 +174,7 @@ describe("ls + parseLsJson", () => {
     expect(parseLsJson("   \n")).toEqual([]);
   });
 
-  it("tolerates sbx info lines prepended before the JSON (verified live)", () => {
+  it("tolerates sbx info lines prepended before the JSON", () => {
     const noisy =
       'Starting sandboxd daemon...\nDaemon started.\n{"sandboxes":[{"name":"t-C0-1.2"}]}';
     expect(parseLsJson(noisy)).toEqual([

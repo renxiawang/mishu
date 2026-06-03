@@ -154,6 +154,17 @@ describe("execShell + SandboxFsLike", () => {
     expect(await new SbxProvider({ spawnFn }).homeDir(handle)).toBe("/root");
   });
 
+  it("homeDir caches per sandbox handle", async () => {
+    const { spawnFn, calls } = fakeSpawn(() => ({ stdout: "/home/agent\n" }));
+    const provider = new SbxProvider({ spawnFn });
+
+    await expect(provider.homeDir(handle)).resolves.toBe("/home/agent");
+    await expect(provider.homeDir(handle)).resolves.toBe("/home/agent");
+    await expect(provider.homeDir({ name: "other" })).resolves.toBe("/home/agent");
+
+    expect(calls.filter((call) => call.args[0] === "exec")).toHaveLength(2);
+  });
+
   it("readFile returns content on exit 0 and null on non-zero (missing file)", async () => {
     const present = new SbxProvider({
       spawnFn: fakeSpawn(() => ({ stdout: "data", code: 0 })).spawnFn,

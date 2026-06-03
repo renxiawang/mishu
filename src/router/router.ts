@@ -12,21 +12,6 @@ import {
 import { chooseSandboxName } from "./sandbox-name.js";
 import { INITIAL_STATE, reduce, type ThreadFsmState } from "./state-machine.js";
 
-/**
- * Router glue — plumbing, not an LLM. Owns the transient
- * per-thread coordination: the idle/running/pending FSM, ts-dedupe, the 👀 ack
- * on every mention, and a per-thread mutex so the state read-modify-write is
- * atomic. All durable state lives in the sandbox; these maps are
- * memory-only and reset on restart, which is fine — an in-flight turn is
- * abandoned and re-driven idempotently on the next mention.
- *
- * Dispatching is fire-and-forget: the turn (and its stream-reader) outlives the
- * dispatch so the router is free to service other threads, while this thread's
- * turn keeps draining. Cross-thread turns run in parallel; turns within a
- * thread serialize and coalesce.
- */
-
-/** What the router needs from the dispatcher (the real Dispatcher fits). */
 export interface TurnDispatcher {
   dispatchTurn(trigger: Mention): Promise<{ ok: boolean }>;
 }
@@ -39,6 +24,10 @@ export interface RouterOptions {
 
 function threadKey(thread: ThreadId): string {
   return `${thread.channel}:${thread.threadTs}`;
+}
+
+function dedupeKey(mention: Mention): string {
+  return `${mention.thread.channel}:${mention.ts}`;
 }
 
 export class Router {
@@ -65,24 +54,22 @@ export class Router {
 
   async onMention(mention: Mention): Promise<void> {
     const key = threadKey(mention.thread);
+    const dedupe = dedupeKey(mention);
 
-    // 1. Idempotent dispatch on ts — drop already-accepted triggers.
-    if (this.dedupe.has(mention.ts)) {
+    if (this.dedupe.has(dedupe)) {
       this.logRouter(mention.thread, mention.ts, RouterKind.MentionDeduped, { ts: mention.ts });
       return;
     }
-    this.dedupe.add(mention.ts);
+    this.dedupe.add(dedupe);
     this.logRouter(mention.thread, mention.ts, RouterKind.MentionReceived, { user: mention.user });
     this.latestMention.set(key, mention);
 
-    // 2. Atomic state read-modify-write under the per-thread lock.
     const effects = await this.withLock(key, () => {
       const { state, effects } = reduce(this.stateOf(key), { kind: "mention" });
       this.states.set(key, state);
       return effects;
     });
 
-    // 3. Effects run outside the lock (they don't touch FSM state).
     for (const effect of effects) {
       if (effect === "ackRunning" || effect === "ackPending") {
         void this.ack(mention);
@@ -92,7 +79,6 @@ export class Router {
     }
   }
 
-  /** Fire-and-forget a turn; on completion, advance the FSM (coalescing). */
   private dispatch(key: string, trigger: Mention): void {
     void this.dispatcher.dispatchTurn(trigger).then(
       () => this.onTurnFinished(key),
@@ -121,7 +107,6 @@ export class Router {
     return this.states.get(key) ?? INITIAL_STATE;
   }
 
-  /** Best-effort 👀 ack on the mention — never blocks or fails the turn. */
   private async ack(mention: Mention): Promise<void> {
     try {
       await this.platform.addReaction(mention.thread.channel, mention.ts, "eyes");
@@ -131,7 +116,6 @@ export class Router {
     }
   }
 
-  /** Serialize handler bodies per thread so the state RMW is atomic. */
   private withLock<T>(key: string, fn: () => T): Promise<T> {
     const prev = this.locks.get(key) ?? Promise.resolve();
     const result = prev.then(fn, fn);

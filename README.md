@@ -1,168 +1,135 @@
 # Mishu
 
-**Mishu is a coding agent that lives in your team's chat.** Mention it in a thread — a real coding
-agent does the work in an isolated sandbox with your repo and credentials, and replies in the same
-thread. Follow-up mentions continue the same session; ask it to open a PR and it ships the work itself.
+Mishu is a Slack bot that lets a team run coding-agent work from a shared thread.
+Mention the bot, and it starts a coding-agent CLI inside an isolated `sbx` sandbox, then replies in
+the same thread. Follow-up mentions in that thread resume the same sandbox and agent session.
 
-It works in your team's communication platform — **Slack today**, more later. It's plumbing, not a
-chatbot: every thread maps 1:1 to its own microVM sandbox and coding-agent session, and the router
-itself runs no LLM — it just relays your thread to a coding-agent CLI (Codex or Claude Code) and
-relays the result back.
+The router is deliberately small: it does not call an LLM, classify intent, or decide whether to
+delegate. It moves Slack thread text to a coding agent, captures the result, and keeps each Slack
+thread mapped to one sandbox.
 
-**Driving philosophy — work in the open.** People collaborate best in the open, and so should a coding
-agent. A private window only teaches the person at the keyboard; a shared thread teaches everyone
-watching. When the work happens where the whole team can see it, every session is searchable, teachable,
-and compounding — the next person with the same question doesn't have to ask it.
+## Features
 
-Inspired by [pi-mom](https://www.npmjs.com/package/@mariozechner/pi-mom) and Shopify's
-[River](https://shopify.engineering/under-the-river) — see Tobi Lütke on
-[working in the open](https://x.com/tobi/status/2053121182044451016).
+- One Slack thread maps to one sandbox and one agent session.
+- Follow-up mentions resume the same coding-agent context.
+- Different threads can run in parallel.
+- Sandboxes keep per-thread state under `~/.agent-state/`.
+- The coding agent can push or open a PR when the sandbox has GitHub credentials.
+- Boundary logs are written as JSONL for debugging and audits.
 
----
+## Requirements
 
-## What you can do with it
+- Node.js 22+
+- The Docker Sandboxes `sbx` CLI
+- A Slack app with Socket Mode enabled
+- A target git repo
+- A Codex or Claude Code credential configured in `sbx`
 
-- **Fix an issue from a thread.** Describe a problem, `@mention` the bot, and it reads the thread,
-  makes the change in your repo, and replies in-thread.
-- **Iterate conversationally.** Mention it again in the same thread to continue — it remembers prior
-  turns and any messages teammates added in between.
-- **Run work in parallel.** Different threads run independent tasks at the same time without colliding.
-- **Pick up after idle.** Mention it a day later and it resumes where it left off — code and
-  conversation both restored.
-- **Ship it.** Ask it to push or open a PR and the agent runs `git`/`gh` itself from inside the sandbox.
-
-**Reading the bot's reactions:** 👀 means it picked up your mention and is working; it swaps to ✅ on
-success or ❌ on failure when the turn finishes. The actual answer is posted as a reply in the thread.
-
----
-
-## Set it up
-
-You need the **`sbx` CLI** (Docker Sandboxes, v0.31.1 — it bundles its own container runtime and
-hypervisor, so **Docker Desktop is not required**), a **Slack app**, and a **target git repo**.
-One-time setup:
-
-### 1. Sandboxes (`sbx`)
+For PR creation, the target repo should have a pushable `origin`, and the sandbox needs a repo-scoped
+GitHub credential:
 
 ```bash
-sbx login                          # sign in to Docker (to pull the sandbox images)
-sbx policy set-default balanced    # allow OpenAI / GitHub / package registries
-
-# Give the coding agent its credential (must exist BEFORE the bot creates sandboxes):
-sbx secret set -g openai --oauth   # ChatGPT subscription (browser sign-in)
-#   …or, to avoid subscription rate limits, an API key:
-#   sbx secret set -g openai        # paste an sk-… key
-sbx secret ls                      # should show: openai (… configured)
+sbx secret set -g github
 ```
 
-> **Prefer a guided flow?** After `npm install` (below), `npm run setup` asks which agent (or honors
-> `MISHU_AGENT=codex|claude`), checks the credential, and walks you through the browser OAuth (Codex)
-> or in-sandbox `/login` (Claude). Mishu prints the same one-liner if it starts without one.
+## Setup
 
-### 2. Slack app (Socket Mode)
-
-Never made a Slack app? Follow these steps:
-
-1. **Create the app** — go to <https://api.slack.com/apps> → **Create New App** → **From scratch**,
-   name it, and pick your workspace.
-2. **Enable Socket Mode** — *Settings → Socket Mode* → toggle **Enable Socket Mode** on.
-3. **App-Level Token** — generate one (the Socket Mode toggle prompts for it, or *Settings → Basic
-   Information → App-Level Tokens*) with the **`connections:write`** scope. This `xapp-…` token is your
-   **`APP_SLACK_APP_TOKEN`**.
-4. **Bot Token Scopes** — *Features → OAuth & Permissions → Scopes → Bot Token Scopes*, add:
-   - `app_mentions:read` — receive the `@mention` that triggers a turn
-   - `chat:write` — post replies in the thread
-   - `reactions:write` — the 👀 / ✅ / ❌ acks
-   - `channels:history` — read thread messages in public channels
-   - `groups:history` — read thread messages in private channels
-5. **Subscribe to events** — *Features → Event Subscriptions* → toggle **Enable Events** on → under
-   **Subscribe to bot events**, add **`app_mention`** (the only event this bot needs).
-6. **Install** — *Settings → Install App* → install to your workspace → copy the **Bot User OAuth
-   Token** (`xoxb-…`). This is your **`APP_SLACK_BOT_TOKEN`**.
-7. **Invite the bot** to any channel you want it to work in: `/invite @YourBot` — it only sees
-   messages in channels it's been added to.
-
-Put the two tokens in a `.env` file at the repo root:
-
-```bash
-APP_SLACK_APP_TOKEN=xapp-…   # step 3 — app-level token (Socket Mode)
-APP_SLACK_BOT_TOKEN=xoxb-…   # step 6 — bot user OAuth token
-```
-
-### 3. Run
+### 1. Install dependencies
 
 ```bash
 npm install
+```
+
+### 2. Configure the coding-agent credential
+
+Codex is the default agent:
+
+```bash
+npm run setup
+```
+
+To set up Claude Code instead:
+
+```bash
+MISHU_AGENT=claude npm run setup
+```
+
+The setup command checks `sbx secret ls` and runs the needed interactive login flow.
+
+### 3. Create the Slack app
+
+Create an app at <https://api.slack.com/apps>, enable Socket Mode, and add these scopes:
+
+| Token | Scopes |
+| --- | --- |
+| App-level token | `connections:write` |
+| Bot token | `app_mentions:read`, `chat:write`, `reactions:write`, `channels:history`, `groups:history` |
+
+Subscribe the app to the `app_mention` bot event, install it to your workspace, and invite it to the
+channels where it should work.
+
+Create `.env` from [.env.example](./.env.example):
+
+```bash
+APP_SLACK_APP_TOKEN=xapp-...
+APP_SLACK_BOT_TOKEN=xoxb-...
+```
+
+### 4. Run Mishu
+
+```bash
 npm run build
 MISHU_REPO=/path/to/your/repo \
   node --env-file=.env dist/cli/index.js --sandbox=sbx ./data
 ```
 
-On first use the bot checks `sbx secret ls`; if the agent's credential is missing it prints the exact
-setup steps and exits. Once it prints `listening …`, **`@mention` it in your channel** and it goes to
-work. Optional env: `MISHU_AGENT=codex|claude` (default codex), `MISHU_LOG_LEVEL=summary|verbose`,
-`MISHU_BOT_USER=U…`.
+When Mishu prints `listening`, mention the bot in Slack.
 
-> To let the agent **push / open PRs**, also give it a repo-scoped GitHub token:
-> `sbx secret set -g github` (prefer a fine-grained PAT scoped to the target repo).
+## Configuration
 
-### Watch what it's doing
+| Variable | Required | Description |
+| --- | --- | --- |
+| `APP_SLACK_APP_TOKEN` | Yes | Slack app-level Socket Mode token (`xapp-...`). |
+| `APP_SLACK_BOT_TOKEN` | Yes | Slack bot user token (`xoxb-...`). |
+| `MISHU_REPO` | Yes | Repo path or ref passed to `sbx create --clone`. |
+| `MISHU_AGENT` | No | `codex` or `claude`; default is `codex`. |
+| `MISHU_LOG_LEVEL` | No | `summary` or `verbose`; default is `summary`. |
+| `MISHU_BOT_USER` | No | Slack bot user id; resolved with `auth.test` when omitted. |
 
-Every turn is logged at the agent boundary to `./data/router.log` (JSONL). Tail one thread:
+## Logs
+
+Each turn is logged to `./data/router.log` as JSONL. Summary logs include argv, prompt size/hash, exit
+code, duration, and final-message snippet. Verbose logs also include raw stdout/stderr chunks.
 
 ```bash
-tail -f ./data/router.log | jq 'select(.threadId=="t-<channel>-<thread_ts>")'
+tail -f ./data/router.log | jq 'select(.threadId=="t-<channel>-<thread-ts>")'
 ```
 
----
-
-## How it works
-
-```
-Slack ⇄ PlatformAdapter ⇄  ROUTER (no durable state, NOT an LLM)  ⇄ SandboxProvider ⇄ microVM
-                                                                          └ CodingBackend (Codex CLI)
-```
-
-The router owns only transient in-memory coordination (an idle/running/pending lock + ts-dedupe).
-Per-thread durable state — the seen-message ledger and the coding-agent session id — lives **inside
-each sandbox** (`~/.agent-state/`); the router finds a thread's sandbox by deterministic naming +
-`sbx ls`, with no database. Durability is the **PR + the Slack thread**, not a state store. Isolation
-is a hypervisor-backed microVM per thread, with host-proxied credentials that never enter the VM.
-
-Three swappable seams (Slack · sbx · Codex today; Discord/e2b/Claude tomorrow) keep every
-vendor-specific choice behind an interface. Standalone project; conventions learned from pi-mom but
-**no code shared**.
-
----
+Credentials are stored and injected by `sbx`; Mishu does not put Slack, OpenAI, Anthropic, or GitHub
+secrets in prompts or argv.
 
 ## Development
 
-Working in this repo? **Read [AGENTS.md](./AGENTS.md) first** — it has the architecture invariants
-(router-is-plumbing, transport ≠ interpretation, pure-core vs I/O-shell, the naming/logging/lifecycle
-rules) you must follow.
+Read [AGENTS.md](./AGENTS.md) before changing the router, sandbox, platform, or backend seams.
 
-| Command | What it does |
+| Command | Description |
 | --- | --- |
-| `npm run check` | **The gate:** Biome (lint + format + imports) + `tsc --noEmit` + Vitest. Keep it green. |
+| `npm run check` | Biome check, TypeScript, and Vitest. This is the main gate. |
 | `npm run check:fix` | Apply Biome fixes, then run the gate. |
-| `npm test` / `test:watch` / `test:cov` | Run Vitest (offline unit tests). |
-| `npm run test:live` | `*.live.test.ts` against the real sbx daemon (needs `sbx` running; **not** in CI). |
-| `npm run build` | Emit `dist/` (`tsc -p tsconfig.build.json`, excludes tests). |
-| `npm start` / `npm run dev` | Run the built CLI / run under `tsx watch`. |
+| `npm test` | Run offline unit tests. |
+| `npm run test:live` | Run live `sbx` tests. Requires the `sbx` daemon and is not part of CI. |
+| `npm run build` | Compile `dist/`. |
+| `npm run dev` | Run the CLI under `tsx watch`. |
 
-Pure logic is separated from I/O so almost everything is unit-tested offline with injected fakes (the
-dispatcher test is the logical end-to-end); the live sbx/Codex and Socket Mode paths are verified
-hands-on. **TypeScript** `strict`, **ESM (NodeNext)** — relative imports use `.js`, type-only imports
-use `import type`. **Biome** is the single lint/format tool. CI runs `check` then `build`.
-
-### Layout (by seam)
+## Architecture
 
 ```
-src/
-  platform/  slack-map.ts (pure event→Mention) + slack.ts (Socket Mode + Web API adapter)
-  sandbox/   sbx-argv.ts (pure argv builders) + sbx-provider.ts (spawn/drain I/O shell)
-  backend/   codex.ts (turnArgs/parseResult/sessionId — the ONLY agent-format knowledge) + fixtures/
-  router/    state-machine, dedupe, sandbox-name, agent-state(+store), log, dispatcher, idle-sweep, router
-  cli/       args.ts + onboarding.ts + index.ts (composition root)
-  types.ts   shared types
+Slack <-> PlatformAdapter <-> Router <-> SandboxProvider <-> sandbox
+                                                          \-> CodingBackend
 ```
+
+- `src/platform/`: Slack event mapping and Slack SDK adapter.
+- `src/router/`: thread state machine, dedupe, sandbox naming, state store, logging, dispatcher, idle sweep.
+- `src/sandbox/`: `sbx` argv builders and provider.
+- `src/backend/`: Codex and Claude Code argument builders and output parsers.
+- `src/cli/`: argument parsing, setup flow, and composition root.

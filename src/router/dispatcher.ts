@@ -19,49 +19,39 @@ import {
 } from "./log.js";
 import { chooseSandboxName } from "./sandbox-name.js";
 
-/**
- * The one-turn lifecycle — the keystone that ties the
- * three seams together for a single turn. Order matters:
- *
- *   resolve-or-create sandbox (deterministic name) → turn-1-vs-resume (session
- *   file) → fetch primer/delta → exec (reader drains stdout+stderr,
- *   stays attached, logs at the boundary) → parseResult → write-after-success
- *   (persist session BEFORE posting, append transcript AFTER the reply) →
- *   relay → swap 👀→✅/❌.
- *
- * Reactions: the router adds 👀 on every mention; the dispatcher swaps the
- * trigger's 👀 to ✅/❌ on completion. dispatchTurn never rejects — it resolves
- * with {ok} so the router's coalescing always advances.
- */
-
 export interface DispatcherDeps {
   platform: Pick<PlatformAdapter, "fetchThread" | "postReply" | "addReaction" | "removeReaction">;
-  /** Provider (create/exec/list) + file helpers for the agent-state store. */
   sandbox: SandboxProvider & SandboxFsLike;
   backend: CodingBackend;
   repoRef: string;
   logSink?: LogSink;
-  /** The bot's own Slack user id; its posts never re-enter the delta. */
   botUser?: string;
   level?: LogLevel;
   failureMessage?: string;
-  /** Optional in-VM bootstrap run once after create (branch off base; confirm live). */
+  /** Optional setup run once after sandbox creation. */
   provisionScript?: string;
   now?: () => number;
   newTurnId?: () => string;
 }
 
-const DEFAULT_FAILURE =
-  "⚠️ The coding agent didn't return a result for that turn. Your request is still queued — mention me again to retry.";
+const DEFAULT_FAILURE = "The coding agent did not finish that turn. Mention me again to retry.";
 
-/** sbx --clone exposes the read-only source repo here (verified live). */
 const SBX_CLONE_SOURCE = "/run/sandbox/source";
-/** In-VM writable clone dir the agent works in (under $HOME, outside ~/.agent-state). */
 const IN_VM_REPO_DIR = "repo";
-/** Non-base branch the agent's work starts on. */
 const WORK_BRANCH = "slack/work";
+const BARE_SHELL_WORD = /^[A-Za-z0-9_/.:=@%+,-]+$/;
 
-/** Render messages into a single prompt. Plumbing, not authorship — no editorializing. */
+function shellQuote(value: string): string {
+  if (value === "") {
+    return "''";
+  }
+  if (BARE_SHELL_WORD.test(value)) {
+    return value;
+  }
+  return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+/** Render thread messages into the prompt passed to the coding agent. */
 export function formatPrompt(messages: ThreadMessage[]): string {
   return messages.map((m) => `${m.user}: ${m.text}`).join("\n\n");
 }
@@ -96,6 +86,7 @@ export class Dispatcher {
   async dispatchTurn(trigger: Mention): Promise<{ ok: boolean }> {
     const thread = trigger.thread;
     const name = chooseSandboxName(thread);
+    let replyPosted = false;
     const ctx: LogContext = {
       threadId: name,
       channel: thread.channel,
@@ -107,7 +98,6 @@ export class Dispatcher {
       const handle = await this.resolveSandbox(thread, name, ctx);
       const store = new AgentStateStore(this.sandbox, handle);
 
-      // Turn-1 vs resume is the session file's presence.
       const sessionId = await store.readSessionId();
       const delta = await this.assembleDelta(thread, store, sessionId);
       if (delta.length === 0) {
@@ -119,8 +109,6 @@ export class Dispatcher {
       const prompt = formatPrompt(delta);
       const argv = this.backend.turnArgs(prompt, sessionId ?? undefined);
 
-      // Provision a writable repo clone and run the agent IN it — verified
-      // live: without this codex exits "Not inside a trusted directory".
       const home = await this.sandbox.homeDir(handle);
       const repoPath = `${home}/${IN_VM_REPO_DIR}`;
       await this.provisionRepo(handle, repoPath, ctx);
@@ -160,36 +148,34 @@ export class Dispatcher {
           exitCode,
           stderrSnippet: stderr.slice(0, 500),
         });
-        // Relay the agent's own error (e.g. a usage limit) when it gave one,
-        // else a generic message. Either way the transcript is NOT appended, so
-        // the request re-feeds on the next mention.
         const reply = result.finalText.trim() !== "" ? result.finalText : this.failureMessage;
         await this.relay(thread, reply);
+        replyPosted = true;
         await this.swapReaction(trigger, false);
         return { ok: false };
       }
 
-      // Write-after-success: persist the session id BEFORE posting (so a
-      // crash still resumes), append the transcript AFTER the reply (so a failed
-      // post re-feeds — at-least-once).
       if (sessionId === null) {
         const id =
           this.backend.parseSessionId?.(stdout) ?? (await this.backend.captureSessionId(handle));
         await store.writeSessionId(id);
       }
       await this.relay(thread, result.finalText);
+      replyPosted = true;
       await store.appendDelta(delta);
       await this.swapReaction(trigger, true);
       this.router(ctx, RouterKind.ResultRelayed, { ok: true, chars: result.finalText.length });
       return { ok: true };
     } catch (err) {
       this.router(ctx, RouterKind.TurnAbandoned, { error: errorMessage(err) });
+      if (!replyPosted) {
+        await this.relayFailure(thread);
+      }
       await this.swapReaction(trigger, false);
       return { ok: false };
     }
   }
 
-  /** Find the thread's sandbox by deterministic name, or create + seed it. */
   private async resolveSandbox(
     thread: ThreadId,
     name: string,
@@ -211,27 +197,28 @@ export class Dispatcher {
     return handle;
   }
 
-  /**
-   * Clone the read-only `--clone` source into a writable repo dir and seed a
-   * non-base branch. Idempotent — runs cheaply each turn, clones once.
-   * The agent later points origin at the real remote + pushes when asked.
-   */
   private async provisionRepo(
     handle: SandboxHandle,
     repoPath: string,
     ctx: LogContext,
   ): Promise<void> {
-    const script =
-      `test -d ${repoPath}/.git || ` +
-      `{ git clone -q ${SBX_CLONE_SOURCE} ${repoPath} && ` +
-      `git -C ${repoPath} checkout -q -B ${WORK_BRANCH}; }`;
+    const source = shellQuote(SBX_CLONE_SOURCE);
+    const repo = shellQuote(repoPath);
+    const fallbackOrigin = shellQuote(this.repoRef);
+    const branch = shellQuote(WORK_BRANCH);
+    const script = [
+      `test -d ${repo}/.git || git clone -q ${source} ${repo}`,
+      `origin="$(git -C ${source} remote get-url origin 2>/dev/null || printf %s ${fallbackOrigin})"`,
+      `{ git -C ${repo} remote get-url origin >/dev/null 2>&1 && git -C ${repo} remote set-url origin "$origin" || git -C ${repo} remote add origin "$origin"; }`,
+      `git -C ${repo} checkout -q -B ${branch}`,
+    ].join(" && ");
     const result = await this.sandbox.execShell(handle, script);
     if (result.exitCode !== 0) {
       this.router(ctx, "provision.failed", { stderrSnippet: result.stderr.slice(0, 300) });
+      throw new Error(`repo provisioning failed: ${result.stderr.trim() || "unknown error"}`);
     }
   }
 
-  /** Turn 1 (no session): whole-thread primer. Follow-up: messages after the hwm. */
   private async assembleDelta(
     thread: ThreadId,
     store: AgentStateStore,
@@ -250,7 +237,14 @@ export class Dispatcher {
     await this.platform.postReply(thread, text);
   }
 
-  /** Best-effort 👀→✅/❌ swap on the trigger (reactions never fail a turn). */
+  private async relayFailure(thread: ThreadId): Promise<void> {
+    try {
+      await this.relay(thread, this.failureMessage);
+    } catch {
+      // The reaction still gives the user a failure signal if posting is unavailable.
+    }
+  }
+
   private async swapReaction(trigger: Mention, ok: boolean): Promise<void> {
     try {
       await this.platform.removeReaction(trigger.thread.channel, trigger.ts, "eyes");

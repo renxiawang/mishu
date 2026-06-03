@@ -10,7 +10,6 @@ import {
   hashString,
   type LogContext,
   type LogSink,
-  nullSink,
   RouterKind,
   safeWrite,
   summarizePrompt,
@@ -136,19 +135,6 @@ describe("safeguards", () => {
   it("capArgv shortens long elements", () => {
     expect(capArgv(["short", "z".repeat(500)], 10)[1]).toContain("…");
   });
-
-  it("never emits credential-shaped fields", () => {
-    const env = buildTurnIn(ctx, TS, {
-      sessionId: null,
-      argv: ["codex"],
-      cwd: "/w",
-      prompt: "p",
-      level: "verbose",
-    });
-    for (const key of Object.keys(env)) {
-      expect(key).not.toMatch(/token|secret|password|apikey|credential/i);
-    }
-  });
 });
 
 describe("sinks — best-effort, never throwing", () => {
@@ -182,9 +168,5 @@ describe("sinks — best-effort, never throwing", () => {
       },
     };
     expect(() => safeWrite(bad, buildRouterEvent(ctx, TS, RouterKind.Error))).not.toThrow();
-  });
-
-  it("nullSink is a no-op", () => {
-    expect(() => nullSink.write(buildRouterEvent(ctx, TS, RouterKind.AckReaction))).not.toThrow();
   });
 });

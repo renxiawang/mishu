@@ -46,19 +46,23 @@ describe("selectIdle", () => {
 
 class FakeSweepSandbox {
   stopped: string[] = [];
+  failStops = new Set<string>();
   readonly files = new Map<string, string>();
   constructor(private readonly handles: SandboxHandle[]) {}
   async list(): Promise<SandboxHandle[]> {
     return this.handles;
   }
   async stop(handle: SandboxHandle): Promise<void> {
+    if (this.failStops.has(handle.name)) {
+      throw new Error(`stop failed: ${handle.name}`);
+    }
     this.stopped.push(handle.name);
   }
   async homeDir(): Promise<string> {
     return "/home/agent";
   }
-  async readFile(_h: SandboxHandle, absPath: string): Promise<string | null> {
-    return this.files.get(absPath) ?? null;
+  async readFile(handle: SandboxHandle, absPath: string): Promise<string | null> {
+    return this.files.get(`${handle.name}:${absPath}`) ?? this.files.get(absPath) ?? null;
   }
   async writeFile(): Promise<void> {}
   // unused provider surface
@@ -79,8 +83,10 @@ class FakeSweepSandbox {
 }
 
 class FakeSweepPlatform {
+  fetched: ThreadId[] = [];
   constructor(private readonly byThread: Map<string, ThreadMessage[]>) {}
   async fetchThread(thread: ThreadId): Promise<ThreadMessage[]> {
+    this.fetched.push(thread);
     return this.byThread.get(`${thread.channel}:${thread.threadTs}`) ?? [];
   }
 }
@@ -118,5 +124,36 @@ describe("IdleSweeper.sweepOnce", () => {
     const sweeper = new IdleSweeper({ sandbox, platform, idleMs: 10_000, now: () => NOW });
 
     expect((await sweeper.sweepOnce()).stopped).toEqual([hashName]);
+  });
+
+  it("ignores hash-named sandboxes with missing or malformed reverse-map state", async () => {
+    const malformed = "t-0123456789abcdef";
+    const missing = "t-fedcba9876543210";
+    const sandbox = new FakeSweepSandbox([{ name: malformed }, { name: missing }]);
+    sandbox.files.set(`${malformed}:/home/agent/.agent-state/thread`, "malformed");
+    const platform = new FakeSweepPlatform(new Map());
+    const sweeper = new IdleSweeper({ sandbox, platform, idleMs: 10_000, now: () => NOW });
+
+    expect((await sweeper.sweepOnce()).stopped).toEqual([]);
+    expect(platform.fetched).toEqual([]);
+  });
+
+  it("continues sweeping when one idle sandbox fails to stop", async () => {
+    const handles: SandboxHandle[] = [
+      { name: "t-C0A-1748600000-000000" },
+      { name: "t-C0B-1748600000-000000" },
+    ];
+    const sandbox = new FakeSweepSandbox(handles);
+    sandbox.failStops.add("t-C0A-1748600000-000000");
+    const platform = new FakeSweepPlatform(
+      new Map([
+        ["C0A:1748600000.000000", [msg("1748600000.000000")]],
+        ["C0B:1748600000.000000", [msg("1748600000.000000")]],
+      ]),
+    );
+    const sweeper = new IdleSweeper({ sandbox, platform, idleMs: 10_000, now: () => NOW });
+
+    expect((await sweeper.sweepOnce()).stopped).toEqual(["t-C0B-1748600000-000000"]);
+    expect(sandbox.stopped).toEqual(["t-C0B-1748600000-000000"]);
   });
 });

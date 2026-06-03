@@ -48,6 +48,17 @@ describe("dedupe", () => {
     await router.onMention({ ...m1 }); // same ts re-delivered
     expect(dispatcher.calls).toHaveLength(1);
   });
+
+  it("does not dedupe the same ts across different channels", async () => {
+    const { router, dispatcher } = build();
+    const other = {
+      ...m1,
+      thread: { channel: "COTHER", threadTs: m1.thread.threadTs },
+    };
+    await router.onMention(m1);
+    await router.onMention(other);
+    expect(dispatcher.calls).toEqual([m1, other]);
+  });
 });
 
 describe("idle/running/pending", () => {

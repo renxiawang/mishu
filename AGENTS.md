@@ -1,126 +1,76 @@
-# AGENTS.md — rules for working in this repo
+# AGENTS.md
 
-Mishu — a coding agent that lives in your team's chat (Slack today): mention it in a Slack thread → it
-does the coding work in an isolated `sbx` microVM running a coding-agent CLI (Codex or Claude Code) →
-it reports back **in the same thread**.
+Rules for contributors and coding agents working in this repo.
 
-## 0. What this is — and is NOT
+Mishu is a Slack-to-coding-agent router. A Slack thread maps to one `sbx` sandbox and one coding-agent
+session. The router is plumbing, not an LLM.
 
-- The **router is plumbing, not an LLM**. It has **no model calls**, makes **no decisions about
-  whether to delegate**, and does **no intent detection**. In particular it does **not** detect "open
-  a PR" — shipping is the agent's job (`git`/`gh` inside the sandbox). Adding reasoning,
-  branching on message content, or an "outer bot" to the router is **out of scope by default** — the
-  router stays pure plumbing unless a strong, explicit use case justifies otherwise.
-- Every Slack thread maps 1:1 to one sandbox to one coding-agent session.
+## Build And Test
 
-## 1. Build / check / test
+- Run `npm install` once.
+- Run `npm run check` before every commit. It runs Biome, `tsc --noEmit`, and Vitest.
+- Use `npm run check:fix` for formatter/import fixes.
+- Use `npm test`, `npm run test:watch`, or `npm run test:cov` for Vitest.
+- Use `npm run build` to emit `dist/`.
+- Use `npm run test:live` only for live `sbx` checks; it is not part of CI.
 
-- `npm install` once. **`npm run check` is the single gate**: Biome (lint + format + organize-imports,
-  `--error-on-warnings`) + `tsc --noEmit` + `vitest run`. Run it before every commit; **keep the repo
-  green at every commit**. `npm install` also wires a **pre-commit hook** (`.githooks/pre-commit`, via
-  the `prepare` script setting `core.hooksPath`) that runs the gate automatically; bypass in a pinch
-  with `git commit --no-verify`.
-- `npm run check:fix` applies Biome fixes then runs the gate. `npm test` / `npm run test:watch` /
-  `npm run test:cov` run Vitest. `npm run build` emits `dist/` (excludes `*.test.ts`). `npm run dev`
-  runs the CLI under `tsx watch`.
-- `npm run test:live` runs the `*.live.test.ts` lane — needs the sbx daemon running (sbx bundles its
-  own runtime; no Docker Desktop), so it's **NOT** part of `check`/CI. Run it locally after any `sbx`
-  upgrade (substrate risk).
+The pre-commit hook in `.githooks/pre-commit` runs `npm run check`.
 
-## 2. Module rules (ESM, strict)
+## Module Rules
 
-- NodeNext + `verbatimModuleSyntax`: **every relative import ends in `.js`** (e.g.
-  `import { Router } from "./router/index.js"`); type-only imports use `import type`. No CommonJS.
-- `strict`, `noUncheckedIndexedAccess`, `noUnusedLocals/Parameters` are on — index access is
-  `T | undefined`; handle it explicitly.
+- ESM only. Relative imports include `.js`.
+- Use `import type` for type-only imports.
+- TypeScript is strict, with `noUncheckedIndexedAccess` and unused checks enabled.
+- New pure logic should have colocated `*.test.ts` coverage.
 
-## 3. Three seams + the stateless router
+## Architecture Invariants
 
 ```
-Slack ⇄ PlatformAdapter ⇄  ROUTER (no durable state, NOT an LLM)  ⇄ SandboxProvider ⇄ microVM
-                                                                          └ CodingBackend (Codex CLI)
+Slack <-> PlatformAdapter <-> Router <-> SandboxProvider <-> sandbox
+                                                          \-> CodingBackend
 ```
 
-Invariants — do not break these:
+- The router does not call models, inspect intent, or decide whether to open PRs.
+- Agent output is an opaque byte stream until it reaches `CodingBackend`.
+- Codex-specific parsing lives in `src/backend/codex.ts`.
+- Claude-specific parsing lives in `src/backend/claude.ts`.
+- The router has no durable database. Per-thread state lives inside the sandbox under
+  `~/.agent-state/`.
+- Router memory may hold only transient locks, dedupe state, and pending/running state.
+- Keep pure code separate from I/O shells. Pure modules should not import `node:child_process`,
+  `node:fs`, or Slack SDK packages.
 
-- **Transport ≠ interpretation.** `SandboxProvider.exec` is an **opaque byte stream** the router
-  logs at the boundary. The **only** place that knows an agent's output/CLI format is `CodingBackend`
-  (`src/backend/codex.ts`). **No Codex `item.*`/event-schema or rollout-file knowledge may live outside
-  `backend/codex.ts`.**
-- **No central state store.** The router runs no DB and keeps no disk state of its own.
-  Discovery = `SandboxProvider.list()` (`sbx ls`) + deterministic naming. Per-thread durable state
-  (`transcript.jsonl`, `session`, `thread`) lives **in each sandbox** under `~/.agent-state/`. Router
-  memory holds only the transient `idle/running/pending` lock + ts-dedupe set — lost on restart by
-  design (an in-flight turn is re-driven idempotently on the next mention).
-- **Pure core vs I/O shell.** Pure modules import only `../types.js`, seam interfaces, and pure stdlib
-  (`node:crypto`) — **never** `node:child_process`, `node:fs`, `@slack/*`. I/O shells import the pure
-  core, never the reverse. New logic ⇒ a pure module + a colocated `*.test.ts`. This is what keeps the
-  system testable offline (no daemon, tokens, or creds in CI).
+## Router Lifecycle
 
-## 4. Sandbox naming — `src/router/sandbox-name.ts`
+- ACK Socket Mode envelopes immediately and handle work asynchronously.
+- Drop Slack retries with `retry_num > 0`.
+- Use reactions for acknowledgements: `eyes` while running, then `white_check_mark` or `x`.
+- Do not reply just to acknowledge a mention; replies affect thread high-water marks.
+- Coalesce mentions that arrive during a running turn into one follow-up turn.
+- Keep stream readers attached until the agent process exits.
+- Persist a new session id before posting the agent reply.
+- Append transcript messages only after the reply posts successfully.
 
-- `name = "t-" + channel + "-" + thread_ts` with the `.` encoded as `-`. **The binding constraint
-  (verified LIVE) is the container HOSTNAME**, which rejects BOTH `_` (so an earlier
-  `replace(".", "_")` sample is illegal for `--name`) AND `.` (accepted by `--name` but `sbx create` fails
-  "hostname: value must be a valid hostname"). So emit only `[A-Za-z0-9-]` — encode `thread_ts`'s `.`
-  as `-`. A test guards against ever emitting `_` or `.`.
-- Reversible: `t-<channel>-<secs>-<micros>` (channel has no `-`; ts is two numeric groups). Over-length
-  names fall back to `t-<hash>`; the full id is stored in `~/.agent-state/thread`.
+## Sandbox Rules
 
-## 5. Boundary logging — `src/router/log.ts`
+- Sandbox names come from `src/router/sandbox-name.ts`.
+- Names must contain only `[A-Za-z0-9-]`; encode Slack `thread_ts` dots as `-`.
+- Long names may hash, but `~/.agent-state/thread` must preserve the full thread id.
+- Use `sbx create --clone` so agents work in an isolated VM, not the host tree.
+- `sbx exec` commands are wrapped in `bash -c`.
+- Do not use `--ephemeral`; resume depends on sandbox state.
+- Agent stdin is redirected from `/dev/null` inside the VM to avoid headless hangs.
+- Provisioning must create a writable repo clone, set `origin`, and start from a non-base branch.
 
-- Always-on **summaries** (argv + session id + prompt size/hash; exit code + duration + final-message
-  snippet + `ok`) and a **verbose** toggle for raw stdout/stderr + full prompt. `direction ∈ in | out |
-  router`; `turnId` correlates a turn's IN + streamed OUT + exit.
-- **Best-effort, never blocking** — writes never `await` on the turn's critical path and never throw
-  (a full disk / slow shipper must not stall a turn). **Cap/hash** large prompts and tool-output bursts.
-- **Never log credentials** — they're proxy-side and never enter argv/prompt. A test asserts no
-  credential-shaped field is emitted.
+## Logging
 
-## 6. Router lifecycle — `src/router/router.ts`, `dispatcher.ts`
+- Boundary logs go through `src/router/log.ts`.
+- Summary logging is always on; verbose logging may include raw stdout/stderr and full prompts.
+- Logging is best-effort and must not block or fail a turn.
+- Do not log credentials or credential-shaped fields.
 
-- **ACK the Socket Mode envelope immediately (<3s) on receipt; run the handler async.** Drop
-  `retry_num > 0`. Dedupe on the trigger `ts` (TTL'd to the ~5-min retry window).
-- **Acks are reactions, not replies.** 👀 on every mention; swap to ✅/❌ on completion. A *reply* ack
-  would move the catch-up high-water mark and corrupt the delta if a turn fails before posting.
-- **Coalescing.** Mid-turn mentions only flip one `pending` bit; one follow-up turn runs whose delta
-  covers them all — **Slack is the queue**, mentions are never buffered in the router.
-- **The stream reader is part of the dispatched turn and must outlive the dispatch.** "Free the router"
-  means free it for *other* threads — never drop this turn's reader (truncates the log / trips the
-  broken-pipe panic).
-- **Write-after-success.** Persist the session id BEFORE posting; append the transcript AFTER the
-  reply. An abandoned/crashed turn then re-feeds cleanly (at-least-once).
-- Turn-1 vs resume is the **session file's presence**; the transcript high-water mark is the
-  **delta boundary**.
+## Commits
 
-## 7. Codex / exec gotchas — `src/sandbox/sbx-argv.ts`, `backend/codex.ts`
-
-- Wrap exec in `bash -c` (`sbx exec` sources no env). **Redirect the agent's stdin from `/dev/null`
-  IN the VM** (`<command> < /dev/null`) — verified live: `sbx exec` keeps the VM process's stdin open
-  even when the host closes its end, so codex otherwise hangs on "Reading additional input from
-  stdin..." forever. Never pass `-i`; **capture stderr** too. **Never `--ephemeral`** (breaks
-  resume). The `--json` stream's `thread.started` event carries the session id (`thread_id`).
-- **Provisioning:** with `--clone`, `/home/agent/workspace` is empty under `sbx exec`; the repo
-  is a read-only mount at `/run/sandbox/source` (a valid git repo) plus a git daemon. A provision step
-  (the dispatcher's `provisionScript`) must clone it into a writable dir, point `origin` at the real
-  remote, and seed a non-base branch before the agent works.
-- Keep Codex's native sandbox ON: `-c sandbox_mode=workspace-write -c approval_policy=never` (set via
-  `-c` because `resume` lacks `-s`). This is defense-in-depth against prompt injection — Slack content
-  is untrusted.
-- Headless `codex exec` can emit **empty stdout** without a TTY on long prompts — `parseResult` treats
-  empty output as a failed turn, and `sbx-argv` has a PTY wrap option (`script`) to mitigate. Resolve
-  PTY-vs-pin during live verification; the boundary log surfaces "argv → 0 bytes, exit 0".
-
-## 8. Test conventions
-
-- **Vitest** (`globals` on), colocated `*.test.ts`, run via `npm test`. **Inject collaborators** (the
-  spawn fn, a clock, fakes) — there is no live daemon, no tokens, and no mocking framework needed.
-- New pure logic ⇒ a colocated transition/round-trip/table/fixture test. Backend parsing is verified
-  against committed `src/backend/fixtures/` (real bytes after the live pass), including the empty-output
-  regression. Live-only checks go in `*.live.test.ts` (gated out of CI).
-
-## 9. Commits
-
-- Small, logical, **green at every commit** (`npm run check` passes). Add a runtime dependency only at
-  the seam that first needs it. Work on a branch; don't commit to the default branch directly. End
-  commit messages with the project's `Co-Authored-By` trailer.
+- Keep commits small and logical.
+- Keep `npm run check` green at every commit.
+- Include the project `Co-Authored-By` trailer when making commits.

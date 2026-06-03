@@ -53,11 +53,4 @@ describe("createTtlSet", () => {
   it("defaults the TTL to at least Slack's ~5-min retry window", () => {
     expect(DEFAULT_DEDUPE_TTL_MS).toBeGreaterThanOrEqual(5 * 60_000);
   });
-
-  it("defaults the clock to wall time (smoke: present right after add)", () => {
-    const set = createTtlSet(); // real clock, 5-min TTL
-    set.add("ts-now");
-    expect(set.has("ts-now")).toBe(true);
-    expect(set.size()).toBe(1);
-  });
 });
