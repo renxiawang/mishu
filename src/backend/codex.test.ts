@@ -154,6 +154,11 @@ describe("CodexBackend.captureSessionId (I/O via injected executor)", () => {
     await expect(backend.captureSessionId(handle)).rejects.toThrow(/no rollout file/);
   });
 
+  it("throws when the newest rollout filename has no session id", async () => {
+    const backend = new CodexBackend(fakeExecutor("1780000000.0\t/home/agent/.codex/bad.jsonl\n"));
+    await expect(backend.captureSessionId(handle)).rejects.toThrow(/could not parse/);
+  });
+
   it("exposes the pure helpers through the interface", () => {
     const backend = new CodexBackend(fakeExecutor(""));
     expect(backend.configHome()).toBe("~/.codex");

@@ -160,6 +160,13 @@ describe("ClaudeBackend.captureSessionId (I/O via injected executor)", () => {
     await expect(backend.captureSessionId(handle)).rejects.toThrow(/no session transcript/);
   });
 
+  it("throws when the newest transcript filename has no session id", async () => {
+    const backend = new ClaudeBackend(
+      fakeExecutor("1780000000.0\t/home/agent/.claude/bad.jsonl\n"),
+    );
+    await expect(backend.captureSessionId(handle)).rejects.toThrow(/could not parse/);
+  });
+
   it("exposes the pure helpers through the interface", () => {
     const backend = new ClaudeBackend(fakeExecutor(""));
     expect(backend.configHome()).toBe("~/.claude");

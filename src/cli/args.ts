@@ -1,16 +1,8 @@
-/**
- * CLI argument parsing (pure). Shape mirrors pi-mom's convention:
- *
- *   mishu --sandbox=<provider> <data-dir>
- *   e.g. mishu --sandbox=sbx ./data
- */
-
 export interface Args {
   sandbox: string;
   dataDir: string;
 }
 
-/** Parse argv (without node/script), or null if invalid / help requested. */
 export function parseArgs(argv: string[]): Args | null {
   let sandbox = "";
   const positional: string[] = [];
@@ -19,15 +11,16 @@ export function parseArgs(argv: string[]): Args | null {
       sandbox = arg.slice("--sandbox=".length);
     } else if (arg === "-h" || arg === "--help") {
       return null;
+    } else if (arg.startsWith("-")) {
+      return null;
     } else {
       positional.push(arg);
     }
   }
-  const dataDir = positional[0];
-  if (sandbox === "" || dataDir === undefined) {
+  if (sandbox === "" || positional.length !== 1) {
     return null;
   }
-  return { sandbox, dataDir };
+  return { sandbox, dataDir: positional[0] as string };
 }
 
 export const USAGE = [

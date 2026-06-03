@@ -42,7 +42,10 @@ class FakePlatform {
 class FakeSandbox {
   readonly files = new Map<string, string>();
   readonly existing: SandboxHandle[];
+  failWrites = new Set<string>();
   execArgs: string[][] = [];
+  shellResults: ExecResult[] = [];
+  shellCommands: string[] = [];
   constructor(
     private readonly trace: string[],
     private readonly execResult: ExecResult,
@@ -69,7 +72,8 @@ class FakeSandbox {
   }
   async execShell(_h: SandboxHandle, command: string): Promise<ExecResult> {
     this.trace.push(`shell:${command.split(" ")[0]}`);
-    return { stdout: "", stderr: "", exitCode: 0 };
+    this.shellCommands.push(command);
+    return this.shellResults.shift() ?? { stdout: "", stderr: "", exitCode: 0 };
   }
   async homeDir(): Promise<string> {
     return HOME;
@@ -79,6 +83,9 @@ class FakeSandbox {
   }
   async writeFile(_h: SandboxHandle, absPath: string, content: string): Promise<void> {
     this.trace.push(`write:${absPath.split("/").pop()}`);
+    if (this.failWrites.has(absPath)) {
+      throw new Error(`write failed: ${absPath}`);
+    }
     this.files.set(absPath, content);
   }
   async getFile(): Promise<Uint8Array> {
@@ -136,6 +143,7 @@ function build(opts: {
   streamId?: string | null;
   seedFiles?: Record<string, string>;
   level?: "summary" | "verbose";
+  provisionScript?: string;
 }): Built {
   const trace: string[] = [];
   const platform = new FakePlatform(
@@ -164,6 +172,7 @@ function build(opts: {
     repoRef: "/repo",
     logSink: sink,
     level: opts.level ?? "summary",
+    provisionScript: opts.provisionScript,
     now: () => 1_700_000_000_000,
     newTurnId: () => "turn-test",
   });
@@ -199,6 +208,10 @@ describe("dispatchTurn — turn 1 happy path", () => {
     // provisioned the repo and ran the agent IN it
     expect(t).toContain("shell:test"); // the `test -d …/.git || git clone …` provision
     expect(b.sandbox.lastCwd).toBe("/home/agent/repo");
+    expect(b.sandbox.shellCommands.some((cmd) => cmd.includes("remote set-url origin"))).toBe(true);
+    expect(b.sandbox.shellCommands.some((cmd) => cmd.includes("checkout -q -B slack/work"))).toBe(
+      true,
+    );
   });
 
   it("reuses an existing sandbox instead of creating one", async () => {
@@ -206,6 +219,16 @@ describe("dispatchTurn — turn 1 happy path", () => {
     await b.dispatcher.dispatchTurn(trigger);
     expect(b.trace).not.toContain(`create:${SANDBOX}`);
     expect(b.trace).toContain("exec");
+  });
+
+  it("runs the optional setup script only when creating a sandbox", async () => {
+    const created = build({ provisionScript: "setup-agent" });
+    await created.dispatcher.dispatchTurn(trigger);
+    expect(created.sandbox.shellCommands).toContain("setup-agent");
+
+    const existing = build({ existing: [SANDBOX], provisionScript: "setup-agent" });
+    await existing.dispatcher.dispatchTurn(trigger);
+    expect(existing.sandbox.shellCommands).not.toContain("setup-agent");
   });
 
   it("falls back to captureSessionId when the stream has no id", async () => {
@@ -259,7 +282,7 @@ describe("dispatchTurn — failure & skip", () => {
     const out = await b.dispatcher.dispatchTurn(trigger);
 
     expect(out).toEqual({ ok: false });
-    expect(b.platform.replies[0]).toMatch(/didn't return a result/);
+    expect(b.platform.replies[0]).toMatch(/did not finish/);
     expect(b.trace).not.toContain("write:session");
     expect(b.trace).not.toContain("write:transcript.jsonl");
     expect(b.trace.slice(-2)).toEqual(["-eyes", "+x"]);
@@ -271,6 +294,30 @@ describe("dispatchTurn — failure & skip", () => {
     await b.dispatcher.dispatchTurn(trigger);
     expect(b.platform.replies[0]).toBe("You've hit your usage limit.");
     expect(b.trace).not.toContain("write:transcript.jsonl"); // still not persisted (re-feed)
+  });
+
+  it("on provisioning failure: does not run the agent, posts failure, and ❌s", async () => {
+    const b = build({});
+    b.sandbox.shellResults.push({ stdout: "", stderr: "clone failed", exitCode: 1 });
+    const out = await b.dispatcher.dispatchTurn(trigger);
+
+    expect(out).toEqual({ ok: false });
+    expect(b.trace).not.toContain("exec");
+    expect(b.platform.replies[0]).toMatch(/did not finish/);
+    expect(b.trace.slice(-2)).toEqual(["-eyes", "+x"]);
+    expect(b.sink.records.map((r) => r.kind)).toContain("provision.failed");
+    expect(b.sink.records.map((r) => r.kind)).toContain("turn.abandoned");
+  });
+
+  it("does not post a generic failure after the agent reply already posted", async () => {
+    const b = build({});
+    b.sandbox.failWrites.add(`${HOME}/.agent-state/transcript.jsonl`);
+    const out = await b.dispatcher.dispatchTurn(trigger);
+
+    expect(out).toEqual({ ok: false });
+    expect(b.platform.replies).toEqual(["Fixed it."]);
+    expect(b.trace.slice(-2)).toEqual(["-eyes", "+x"]);
+    expect(b.sink.records.map((r) => r.kind)).toContain("turn.abandoned");
   });
 
   it("on empty delta: skips exec entirely and ✅s", async () => {
@@ -298,6 +345,7 @@ describe("dispatchTurn — failure & skip", () => {
     };
     const out = await b.dispatcher.dispatchTurn(trigger);
     expect(out).toEqual({ ok: false });
+    expect(b.platform.replies[0]).toMatch(/did not finish/);
     expect(b.sink.records.map((r) => r.kind)).toContain("turn.abandoned");
   });
 });

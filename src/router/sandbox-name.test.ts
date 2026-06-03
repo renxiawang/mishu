@@ -23,7 +23,7 @@ describe("sandboxName", () => {
     );
   });
 
-  it("emits NEITHER '_' (illegal --name) NOR '.' (illegal hostname) — both verified live", () => {
+  it("emits neither '_' nor '.'", () => {
     for (const thread of SAMPLES) {
       const name = sandboxName(thread);
       expect(name).not.toContain("_");

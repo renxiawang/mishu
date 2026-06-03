@@ -1,10 +1,15 @@
 {
   "name": "mishu",
   "version": "0.0.1",
-  "private": true,
   "type": "module",
   "description": "Mishu — a coding agent that lives in your team's chat (Slack today): mention it in a thread and it does the work in an isolated sandbox, then replies in-thread.",
   "license": "MIT",
+  "files": [
+    "dist",
+    ".env.example",
+    "README.md",
+    "LICENSE"
+  ],
   "bin": {
     "mishu": "dist/cli/index.js"
   },

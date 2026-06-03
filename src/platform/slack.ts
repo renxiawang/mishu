@@ -9,26 +9,12 @@ import {
   threadMessagesFromReplies,
 } from "./slack-map.js";
 
-/**
- * Slack PlatformAdapter via Socket Mode + Web API — the I/O shell.
- * The mapping logic lives in slack-map.ts; this only wires the SDKs.
- *
- * Discipline: the Socket Mode envelope is ACKed immediately on receipt,
- * BEFORE any work, and the handler runs async to the ACK; retries
- * (retry_num > 0) are dropped so a slow turn can't trigger double-dispatch.
- * Acks to the user are reactions, not replies.
- */
-
 export interface SlackAdapterConfig {
-  /** App-level token (xapp-…, connections:write) → Socket Mode. */
   appToken: string;
-  /** Bot token (xoxb-…). */
   botToken: string;
-  /** Bot user id; resolved via auth.test() at start() if omitted. */
   botUserId?: string;
 }
 
-/** The arg shape SocketModeClient emits for an events_api event. */
 interface SocketModeEventArgs {
   ack: () => Promise<void>;
   event: SlackAppMentionEvent;
@@ -36,8 +22,15 @@ interface SocketModeEventArgs {
 }
 
 function slackErrorCode(err: unknown): string | undefined {
-  const data = (err as { data?: { error?: string } }).data;
-  return data?.error;
+  if (typeof err !== "object" || err === null || !("data" in err)) {
+    return undefined;
+  }
+  const data = (err as { data?: unknown }).data;
+  if (typeof data !== "object" || data === null || !("error" in data)) {
+    return undefined;
+  }
+  const error = (data as { error?: unknown }).error;
+  return typeof error === "string" ? error : undefined;
 }
 
 export class SlackAdapter implements PlatformAdapter {
@@ -56,7 +49,6 @@ export class SlackAdapter implements PlatformAdapter {
     this.handler = handler;
   }
 
-  /** Resolve (and cache) the bot's own user id via auth.test (self-filtering). */
   async whoAmI(): Promise<string | undefined> {
     if (this.botUserId === undefined) {
       const auth = await this.web.auth.test();
@@ -65,18 +57,16 @@ export class SlackAdapter implements PlatformAdapter {
     return this.botUserId;
   }
 
-  /** Resolve the bot's identity, wire the listener, and open the socket. */
   async start(): Promise<void> {
     await this.whoAmI();
     this.socket.on("app_mention", (args: SocketModeEventArgs) => {
-      // ACK at the WebSocket layer on receipt — never block the ~3s deadline.
-      void args.ack();
+      void args.ack().catch(() => {});
       if (typeof args.retry_num === "number" && args.retry_num > 0) {
-        return; // a retry of an event we already accepted
+        return;
       }
       const mention = mentionFromEvent(args.event, this.botUserId);
       if (mention !== null && this.handler !== null) {
-        this.handler(mention); // async to the ACK
+        this.handler(mention);
       }
     });
     await this.socket.start();
@@ -121,7 +111,7 @@ export class SlackAdapter implements PlatformAdapter {
       await this.web.reactions.add({ channel, timestamp: ts, name: emoji });
     } catch (err) {
       if (slackErrorCode(err) !== "already_reacted") {
-        throw err; // idempotent: re-adding our own 👀 is fine
+        throw err;
       }
     }
   }

@@ -110,4 +110,8 @@ describe("serializeTranscript / parseTranscript", () => {
     const text = '{"ts":"1.1","user":"U","text":"a"}\n\n{"ts":"1.2","user":"U","text":"b"}';
     expect(parseTranscript(text)).toEqual([msg("1.1", "U", "a"), msg("1.2", "U", "b")]);
   });
+
+  it("throws on malformed message records", () => {
+    expect(() => parseTranscript('{"ts":"1.1","user":"U"}')).toThrow(/invalid transcript line 1/);
+  });
 });
