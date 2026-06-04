@@ -27,5 +27,6 @@ describe("parseArgs", () => {
 
   it("documents optional sandbox template env", () => {
     expect(USAGE).toContain("MISHU_SANDBOX_TEMPLATE");
+    expect(USAGE).toContain("MISHU_SANDBOX_DOCKERFILE");
   });
 });

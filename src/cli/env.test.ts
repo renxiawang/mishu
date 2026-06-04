@@ -1,5 +1,5 @@
 import { createArgv } from "../sandbox/sbx-argv.js";
-import { createOptionsFromEnv, optionalEnv } from "./env.js";
+import { createConfigFromEnv, createOptionsFromEnv, optionalEnv } from "./env.js";
 
 describe("optionalEnv", () => {
   it("normalizes unset and empty env values to undefined", () => {
@@ -39,5 +39,26 @@ describe("createOptionsFromEnv", () => {
       "claude",
       "/repo",
     ]);
+  });
+});
+
+describe("createConfigFromEnv", () => {
+  it("captures a local sandbox Dockerfile separately from create argv options", () => {
+    const config = createConfigFromEnv("codex", {
+      MISHU_SANDBOX_DOCKERFILE: "./Dockerfile",
+    });
+    expect(config).toEqual({
+      createOptions: { agent: "codex", template: undefined },
+      dockerfile: "./Dockerfile",
+    });
+  });
+
+  it("rejects setting both a registry template and a local Dockerfile", () => {
+    expect(() =>
+      createConfigFromEnv("codex", {
+        MISHU_SANDBOX_TEMPLATE: "myregistry/image:tag",
+        MISHU_SANDBOX_DOCKERFILE: "./Dockerfile",
+      }),
+    ).toThrow(/Set only one/);
   });
 });

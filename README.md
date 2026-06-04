@@ -96,6 +96,7 @@ When Mishu prints `listening`, mention the bot in Slack.
 | `MISHU_REPO` | Yes | Repo path or ref passed to `sbx create --clone`. |
 | `MISHU_AGENT` | No | `codex` or `claude`; default is `codex`. |
 | `MISHU_SANDBOX_TEMPLATE` | No | Optional `sbx create --template` image. The image must include `bash`, `git`, and the selected agent CLI. |
+| `MISHU_SANDBOX_DOCKERFILE` | No | Optional local Dockerfile to build, load into `sbx`, and use as the sandbox template. Mutually exclusive with `MISHU_SANDBOX_TEMPLATE`. |
 | `MISHU_LOG_LEVEL` | No | `summary` or `verbose`; default is `summary`. |
 | `MISHU_BOT_USER` | No | Slack bot user id; resolved with `auth.test` when omitted. |
 
@@ -107,6 +108,11 @@ provider, configure Docker Sandboxes governance and local policy outside Mishu:
 
 If `MISHU_SANDBOX_TEMPLATE` is set, Mishu passes it to `sbx create --template` for future sandbox
 creation. Custom templates must include `bash`, `git`, and the selected agent CLI.
+
+If `MISHU_SANDBOX_DOCKERFILE` is set, Mishu builds the Dockerfile at startup, exports the resulting
+image, loads it with `sbx template load`, and passes the generated local image tag to
+`sbx create --template`. The Dockerfile's directory is used as the build context. Do not set
+`MISHU_SANDBOX_TEMPLATE` and `MISHU_SANDBOX_DOCKERFILE` at the same time.
 
 ## Logs
 

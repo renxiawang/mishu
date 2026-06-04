@@ -18,7 +18,8 @@ import { Dispatcher, Router } from "../router/index.js";
 import { createJsonlSink, type LogLevel, type LogSink } from "../router/log.js";
 import { SbxProvider } from "../sandbox/sbx-provider.js";
 import { type Args, parseArgs, USAGE } from "./args.js";
-import { createOptionsFromEnv } from "./env.js";
+import { prepareDockerfileTemplate } from "./dockerfile-template.js";
+import { createConfigFromEnv } from "./env.js";
 import { type Agent, ensureOnboarded, parseAgent } from "./onboarding.js";
 
 /** Boundary-log sink: the router's stdout + an append-only JSONL file. */
@@ -47,17 +48,27 @@ async function run(args: Args): Promise<void> {
   }
   const agent: Agent = parseAgent(process.env.MISHU_AGENT) ?? "codex";
   const level: LogLevel = process.env.MISHU_LOG_LEVEL === "verbose" ? "verbose" : "summary";
+  const createConfig = createConfigFromEnv(agent, process.env);
 
-  const provider = new SbxProvider({ createOptions: createOptionsFromEnv(agent, process.env) });
+  const credentialProvider = new SbxProvider({ createOptions: { agent } });
 
   // Onboarding gate: require the agent's credential before serving.
   const onboarded = await ensureOnboarded(agent, {
-    secretLs: () => provider.secretLs(),
+    secretLs: () => credentialProvider.secretLs(),
     log: (message) => console.error(message),
   });
   if (!onboarded) {
     process.exit(1);
   }
+
+  if (createConfig.dockerfile !== undefined) {
+    const prepared = await prepareDockerfileTemplate(createConfig.dockerfile, {
+      log: (message) => console.error(message),
+    });
+    createConfig.createOptions.template = prepared.tag;
+  }
+
+  const provider = new SbxProvider({ createOptions: createConfig.createOptions });
 
   const appToken = requireEnv("APP_SLACK_APP_TOKEN");
   const botToken = requireEnv("APP_SLACK_BOT_TOKEN");
