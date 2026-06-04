@@ -7,6 +7,7 @@ import {
   lsArgv,
   lsNamesArgv,
   parseLsJson,
+  policyAllowNetworkArgv,
   ptyCommand,
   remotePath,
   rmArgv,
@@ -227,5 +228,24 @@ describe("secret (onboarding/auth)", () => {
     expect(secretSetArgv("openai")).toEqual(["secret", "set", "-g", "openai"]);
     expect(secretSetArgv("openai", { global: false })).toEqual(["secret", "set", "openai"]);
     expect(secretRmArgv("openai", { global: true })).toEqual(["secret", "rm", "-g", "openai"]);
+  });
+});
+
+describe("policy", () => {
+  it("builds scoped and global network allow argv", () => {
+    expect(policyAllowNetworkArgv("box", ["api.deepseek.com:443"])).toEqual([
+      "policy",
+      "allow",
+      "network",
+      "box",
+      "api.deepseek.com:443",
+    ]);
+    expect(policyAllowNetworkArgv("global", ["api.example.com", "*.example.org"])).toEqual([
+      "policy",
+      "allow",
+      "network",
+      "-g",
+      "api.example.com,*.example.org",
+    ]);
   });
 });

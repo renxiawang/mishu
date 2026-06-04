@@ -21,11 +21,12 @@ thread mapped to one sandbox.
 
 ## Requirements
 
-- Node.js 22+
+- Node.js 22+ on the host running Mishu. The maintained Pi sandbox template includes Node.js 24
+  for the Pi CLI.
 - The Docker Sandboxes `sbx` CLI
 - A Slack app with Socket Mode enabled
 - A target git repo
-- A Codex or Claude Code credential configured in `sbx`
+- A Codex or Claude Code credential configured in `sbx`; Pi uses provider API-key env vars
 
 For PR creation, the target repo should have a pushable `origin`, and the sandbox needs a repo-scoped
 GitHub credential:
@@ -94,9 +95,12 @@ When Mishu prints `listening`, mention the bot in Slack.
 | `APP_SLACK_APP_TOKEN` | Yes | Slack app-level Socket Mode token (`xapp-...`). |
 | `APP_SLACK_BOT_TOKEN` | Yes | Slack bot user token (`xoxb-...`). |
 | `MISHU_REPO` | Yes | Repo path or ref passed to `sbx create --clone`. |
-| `MISHU_AGENT` | No | `codex` or `claude`; default is `codex`. |
+| `MISHU_AGENT` | No | `codex`, `claude`, or `pi`; default is `codex`. |
 | `MISHU_SANDBOX_TEMPLATE` | No | Optional `sbx create --template` image. The image must include `bash`, `git`, and the selected agent CLI. |
 | `MISHU_SANDBOX_DOCKERFILE` | No | Optional local Dockerfile to build, load into `sbx`, and use as the sandbox template. Mutually exclusive with `MISHU_SANDBOX_TEMPLATE`. |
+| `MISHU_PI_PROVIDER` | Yes, for Pi | Provider for `MISHU_PI_API_KEY`; `anthropic`, `deepseek`, `google`, or `openai`. Only valid with `MISHU_AGENT=pi`. |
+| `MISHU_PI_API_KEY` | Yes, for Pi | Provider API key injected into Pi turns as an environment variable. You may also set the selected provider's native env var instead. |
+| `MISHU_PI_MODEL` | No | Optional Pi model override, for example `deepseek/deepseek-chat`. When omitted, Mishu uses a provider default. |
 | `MISHU_LOG_LEVEL` | No | `summary` or `verbose`; default is `summary`. |
 | `MISHU_BOT_USER` | No | Slack bot user id; resolved with `auth.test` when omitted. |
 
@@ -114,6 +118,28 @@ image, loads it with `sbx template load`, and passes the generated local image t
 `sbx create --template`. The Dockerfile's directory is used as the build context. Do not set
 `MISHU_SANDBOX_TEMPLATE` and `MISHU_SANDBOX_DOCKERFILE` at the same time.
 
+Pi is not a native Docker Sandboxes agent yet. For `MISHU_AGENT=pi`, Mishu creates an `sbx shell`
+sandbox and requires either `MISHU_SANDBOX_TEMPLATE` or `MISHU_SANDBOX_DOCKERFILE`. The maintained
+Dockerfile is [sandbox-templates/pi/Dockerfile](./sandbox-templates/pi/Dockerfile):
+
+```bash
+# With DEEPSEEK_API_KEY=sk-... in .env:
+MISHU_AGENT=pi \
+MISHU_SANDBOX_DOCKERFILE="$PWD/sandbox-templates/pi/Dockerfile" \
+MISHU_PI_PROVIDER=deepseek \
+MISHU_REPO=/path/to/your/repo \
+  node --env-file=.env dist/cli/index.js --sandbox=sbx ./data
+```
+
+Pi is API-key-only in Mishu for now. Set `MISHU_PI_PROVIDER` and either `MISHU_PI_API_KEY` or the
+selected provider's native env var. Mishu injects the matching provider env var into the Pi process
+only. Supported provider env mappings are: `anthropic -> ANTHROPIC_API_KEY`,
+`deepseek -> DEEPSEEK_API_KEY`, `google -> GEMINI_API_KEY`, and `openai -> OPENAI_API_KEY`. Keys are
+not passed in argv or router logs.
+
+When `MISHU_PI_PROVIDER=deepseek`, Mishu automatically allows `api.deepseek.com:443` for each newly
+created sbx sandbox. Docker organization governance can still override local sandbox policy rules.
+
 ## Logs
 
 Each turn is logged to `./data/router.log` as JSONL. Summary logs include argv, prompt size/hash, exit
@@ -123,8 +149,8 @@ code, duration, and final-message snippet. Verbose logs also include raw stdout/
 tail -f ./data/router.log | jq 'select(.threadId=="t-<channel>-<thread-ts>")'
 ```
 
-Credentials are stored and injected by `sbx`; Mishu does not put Slack, OpenAI, Anthropic, or GitHub
-secrets in prompts or argv.
+Credentials are not put in prompts or argv. Codex, Claude, and GitHub credentials are stored and
+injected by `sbx`; Pi provider API keys are injected by Mishu into the Pi process environment.
 
 ## Development
 

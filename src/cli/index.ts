@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { ClaudeBackend } from "../backend/claude.js";
 import { CodexBackend } from "../backend/codex.js";
 import type { CodingBackend } from "../backend/index.js";
+import { PiBackend } from "../backend/pi.js";
 import { SlackAdapter } from "../platform/slack.js";
 import { IdleSweeper } from "../router/idle-sweep.js";
 import { Dispatcher, Router } from "../router/index.js";
@@ -68,7 +69,10 @@ async function run(args: Args): Promise<void> {
     createConfig.createOptions.template = prepared.tag;
   }
 
-  const provider = new SbxProvider({ createOptions: createConfig.createOptions });
+  const provider = new SbxProvider({
+    createNetworkAllows: createConfig.createNetworkAllows,
+    createOptions: createConfig.createOptions,
+  });
 
   const appToken = requireEnv("APP_SLACK_APP_TOKEN");
   const botToken = requireEnv("APP_SLACK_BOT_TOKEN");
@@ -78,7 +82,15 @@ async function run(args: Args): Promise<void> {
   const platform = new SlackAdapter({ appToken, botToken, botUserId: process.env.MISHU_BOT_USER });
   const botUser = await platform.whoAmI();
   const backend: CodingBackend =
-    agent === "claude" ? new ClaudeBackend(provider) : new CodexBackend(provider);
+    agent === "pi"
+      ? new PiBackend(provider, {
+          env: createConfig.turnEnv,
+          model: createConfig.piModel,
+          provider: createConfig.piProvider,
+        })
+      : agent === "claude"
+        ? new ClaudeBackend(provider)
+        : new CodexBackend(provider);
   const dispatcher = new Dispatcher({
     platform,
     sandbox: provider,

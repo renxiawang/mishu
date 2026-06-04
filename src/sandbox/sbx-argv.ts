@@ -170,3 +170,14 @@ export function secretSetArgv(service: string, opts: SecretSetOptions = {}): str
 export function secretRmArgv(service: string, opts: { global?: boolean } = {}): string[] {
   return ["secret", "rm", ...(opts.global === true ? ["-g"] : []), service];
 }
+
+export function policyAllowNetworkArgv(scope: "global" | string, resources: string[]): string[] {
+  const argv = ["policy", "allow", "network"];
+  if (scope === "global") {
+    argv.push("-g");
+  } else {
+    argv.push(scope);
+  }
+  argv.push(resources.join(","));
+  return argv;
+}

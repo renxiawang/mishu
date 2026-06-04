@@ -13,7 +13,6 @@ import { SbxProvider } from "../sandbox/sbx-provider.js";
 import {
   type Agent,
   credentialService,
-  detectMissingCredential,
   loginSandbox,
   parseAgent,
   setupCommand,
@@ -28,11 +27,11 @@ function sleep(ms: number): Promise<void> {
 /** Is the agent's credential present? Polls (sbx may set it a beat after the flow exits). */
 async function credentialPresent(
   provider: SbxProvider,
-  agent: Agent,
+  service: string,
   tries: number,
 ): Promise<boolean> {
   for (let attempt = 0; attempt < tries; attempt++) {
-    if (!detectMissingCredential(await provider.secretLs(), agent)) {
+    if (new RegExp(`\\b${service}\\b`, "i").test(await provider.secretLs())) {
       return true;
     }
     if (attempt < tries - 1) {
@@ -53,7 +52,7 @@ async function resolveAgent(): Promise<Agent> {
   }
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
-    const answer = await rl.question("Which agent? [codex/claude] (default: codex): ");
+    const answer = await rl.question("Which agent? [codex/claude/pi] (default: codex): ");
     return parseAgent(answer.trim().toLowerCase()) ?? "codex";
   } finally {
     rl.close();
@@ -62,11 +61,18 @@ async function resolveAgent(): Promise<Agent> {
 
 async function main(): Promise<void> {
   const agent = await resolveAgent();
+  if (agent === "pi") {
+    console.log("Pi setup is env-only in Mishu.");
+    console.log("Set MISHU_PI_PROVIDER to anthropic, deepseek, google, or openai.");
+    console.log("Set MISHU_PI_API_KEY or the selected provider's native API-key env var.");
+    console.log("Optional: set MISHU_PI_MODEL to override the provider default model.");
+    return;
+  }
   const service = credentialService(agent);
   const provider = new SbxProvider({ createOptions: { agent } });
 
   // Already set up? (idempotent)
-  if (await credentialPresent(provider, agent, 1)) {
+  if (await credentialPresent(provider, service, 1)) {
     console.log(`✓ '${service}' is already configured in sbx — Mishu is ready (agent=${agent}).`);
     return;
   }
@@ -97,7 +103,7 @@ async function main(): Promise<void> {
   }
 
   // Confirm.
-  if (!(await credentialPresent(provider, agent, 3))) {
+  if (!(await credentialPresent(provider, service, 3))) {
     console.error(`\n✗ '${service}' still isn't configured. Re-run 'npm run setup' to try again.`);
     process.exit(1);
   }

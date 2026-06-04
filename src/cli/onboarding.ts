@@ -7,16 +7,29 @@
  * capability (so it's injectable in tests).
  */
 
-export type Agent = "codex" | "claude";
+export type Agent = "codex" | "claude" | "pi";
+export type PiProvider = "anthropic" | "deepseek" | "google" | "openai";
 
 /** Parse an agent name (from an env var or a prompt answer); null if unrecognized. */
 export function parseAgent(value: string | null | undefined): Agent | null {
-  return value === "codex" || value === "claude" ? value : null;
+  return value === "codex" || value === "claude" || value === "pi" ? value : null;
 }
 
 /** The sbx secret service that backs each agent's auth. */
 export function credentialService(agent: Agent): string {
-  return agent === "codex" ? "openai" : "anthropic";
+  if (agent === "codex") {
+    return "openai";
+  }
+  if (agent === "pi") {
+    throw new Error("Pi uses MISHU_PI_PROVIDER and MISHU_PI_API_KEY, not sbx credentials");
+  }
+  return "anthropic";
+}
+
+export function parsePiProvider(value: string | null | undefined): PiProvider | null {
+  return value === "anthropic" || value === "deepseek" || value === "google" || value === "openai"
+    ? value
+    : null;
 }
 
 /** The throwaway sandbox `npm run setup` creates for Claude's `/login`, then removes. */
@@ -30,9 +43,13 @@ export const CLAUDE_LOGIN_SANDBOX = "mishu-login";
  * captures the credential host-side; setup removes the sandbox afterward.
  */
 export function setupCommand(agent: Agent): string[] {
-  return agent === "codex"
-    ? ["secret", "set", "-g", credentialService(agent), "--oauth"]
-    : ["run", "--name", CLAUDE_LOGIN_SANDBOX, "claude"];
+  if (agent === "codex") {
+    return ["secret", "set", "-g", credentialService(agent), "--oauth"];
+  }
+  if (agent === "pi") {
+    throw new Error("Pi setup is env-only; set MISHU_PI_PROVIDER and MISHU_PI_API_KEY");
+  }
+  return ["run", "--name", CLAUDE_LOGIN_SANDBOX, "claude"];
 }
 
 /** The throwaway login sandbox `setupCommand` creates (to remove after), or null (Codex). */
@@ -42,6 +59,9 @@ export function loginSandbox(agent: Agent): string | null {
 
 /** True if `sbx secret ls` shows no credential for the agent's service. */
 export function detectMissingCredential(secretLsOutput: string, agent: Agent): boolean {
+  if (agent === "pi") {
+    return false;
+  }
   const service = credentialService(agent);
   const present = new RegExp(`\\b${service}\\b`, "i").test(secretLsOutput);
   return !present;
@@ -49,8 +69,8 @@ export function detectMissingCredential(secretLsOutput: string, agent: Agent): b
 
 /** One-time setup instructions for the human (the OAuth/browser step needs a person). */
 export function onboardingInstructions(agent: Agent): string {
-  const service = credentialService(agent);
   if (agent === "codex") {
+    const service = credentialService(agent);
     return [
       `No '${service}' credential is configured in sbx for Codex.`,
       "",
@@ -64,6 +84,20 @@ export function onboardingInstructions(agent: Agent): string {
       "(The credential is host-side and proxy-injected — it never enters a sandbox)",
     ].join("\n");
   }
+  if (agent === "pi") {
+    return [
+      "Pi credentials are configured with Mishu environment variables.",
+      "",
+      "  Required:",
+      "  1. Set MISHU_PI_PROVIDER to anthropic, deepseek, google, or openai.",
+      "  2. Set MISHU_PI_API_KEY or the selected provider's native API-key env var.",
+      "",
+      "  Optional: set MISHU_PI_MODEL to override Mishu's provider default model.",
+      "",
+      "(Pi runs in an sbx shell template today, so Mishu injects the API key into the Pi process env.)",
+    ].join("\n");
+  }
+  const service = credentialService(agent);
   return [
     `No '${service}' credential is configured in sbx for Claude.`,
     "",
@@ -92,6 +126,9 @@ export interface OnboardingDeps {
  * printing setup instructions (the human must complete the one-time OAuth).
  */
 export async function ensureOnboarded(agent: Agent, deps: OnboardingDeps): Promise<boolean> {
+  if (agent === "pi") {
+    return true;
+  }
   const output = await deps.secretLs();
   if (detectMissingCredential(output, agent)) {
     deps.log(onboardingInstructions(agent));

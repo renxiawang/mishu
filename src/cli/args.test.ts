@@ -28,5 +28,8 @@ describe("parseArgs", () => {
   it("documents optional sandbox template env", () => {
     expect(USAGE).toContain("MISHU_SANDBOX_TEMPLATE");
     expect(USAGE).toContain("MISHU_SANDBOX_DOCKERFILE");
+    expect(USAGE).toContain("MISHU_PI_PROVIDER");
+    expect(USAGE).toContain("MISHU_PI_API_KEY");
+    expect(USAGE).toContain("MISHU_PI_MODEL");
   });
 });

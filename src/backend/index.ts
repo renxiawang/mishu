@@ -10,6 +10,8 @@ export interface CodingBackend {
 
   turnArgs(message: string, sessionId?: string): string[];
 
+  turnEnv?(): Record<string, string>;
+
   parseResult(captured: string): TurnResult;
 
   captureSessionId(handle: SandboxHandle): Promise<string>;

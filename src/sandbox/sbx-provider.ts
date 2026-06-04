@@ -12,6 +12,7 @@ import {
   execArgv,
   lsArgv,
   parseLsJson,
+  policyAllowNetworkArgv,
   remotePath,
   rmArgv,
   secretLsArgv,
@@ -52,6 +53,8 @@ export interface SbxProviderConfig {
   login?: boolean;
   /** Wrap the agent command in a PTY (codex empty-output mitigation). */
   pty?: boolean;
+  /** Network hosts to allow locally for each sandbox immediately after creation. */
+  createNetworkAllows?: string[];
 }
 
 export class SbxProvider implements SandboxProvider {
@@ -60,6 +63,7 @@ export class SbxProvider implements SandboxProvider {
   private readonly createOptions: CreateOptions;
   private readonly login: boolean;
   private readonly pty: boolean;
+  private readonly createNetworkAllows: string[];
   /** Per-sandbox `$HOME` cache — invariant for a sandbox's life (see homeDir). */
   private readonly homeDirCache = new Map<string, string>();
 
@@ -69,6 +73,7 @@ export class SbxProvider implements SandboxProvider {
     this.createOptions = config.createOptions ?? {};
     this.login = config.login ?? false;
     this.pty = config.pty ?? false;
+    this.createNetworkAllows = config.createNetworkAllows ?? [];
   }
 
   /** Spawn `sbx <argv>`, drain stdout+stderr to exit, close stdin. */
@@ -107,12 +112,19 @@ export class SbxProvider implements SandboxProvider {
 
   async create(name: string, repoRef: string): Promise<SandboxHandle> {
     await this.runOrThrow(createArgv(name, repoRef, this.createOptions), `create ${name}`);
+    if (this.createNetworkAllows.length > 0) {
+      await this.runOrThrow(
+        policyAllowNetworkArgv(name, this.createNetworkAllows),
+        `policy allow network ${name}`,
+      );
+    }
     return { name };
   }
 
   exec(handle: SandboxHandle, argv: string[], opts: ExecCallOptions = {}): Promise<ExecResult> {
     return this.run(
       execAgentArgv(handle.name, argv, {
+        env: opts.env,
         login: this.login,
         pty: this.pty,
         workdir: opts.cwd,
@@ -126,7 +138,7 @@ export class SbxProvider implements SandboxProvider {
     command: string,
     opts: ExecCallOptions = {},
   ): Promise<ExecResult> {
-    return this.run(execArgv(handle.name, command, { login: this.login }), opts);
+    return this.run(execArgv(handle.name, command, { env: opts.env, login: this.login }), opts);
   }
 
   async stop(handle: SandboxHandle): Promise<void> {

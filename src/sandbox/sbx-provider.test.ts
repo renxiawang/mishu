@@ -94,6 +94,24 @@ describe("exec — drain, stdin close, streaming", () => {
     expect((await provider.exec(handle, ["codex", "exec", "x"])).exitCode).toBe(3);
   });
 
+  it("passes env values through sbx exec without adding them to the bash command", async () => {
+    const { spawnFn, calls } = fakeSpawn(() => ({ stdout: "", code: 0 }));
+    const provider = new SbxProvider({ spawnFn });
+    await provider.exec(handle, ["pi", "--mode", "json", "--", "x"], {
+      env: { ANTHROPIC_API_KEY: "secret-value" },
+    });
+    expect(calls[0]?.args).toEqual([
+      "exec",
+      "-e",
+      "ANTHROPIC_API_KEY=secret-value",
+      handle.name,
+      "--",
+      "bash",
+      "-c",
+      "pi --mode json -- x < /dev/null",
+    ]);
+  });
+
   it("rejects when the process emits an error (e.g. sbx not found)", async () => {
     const { spawnFn } = fakeSpawn(() => ({ error: new Error("ENOENT sbx") }));
     const provider = new SbxProvider({ spawnFn });
@@ -107,6 +125,23 @@ describe("create / stop / destroy / list", () => {
     const provider = new SbxProvider({ spawnFn });
     expect(await provider.create("t-C0-1.2", "/repo")).toEqual({ name: "t-C0-1.2" });
     expect(calls[0]?.args).toEqual(["create", "--clone", "--name", "t-C0-1.2", "codex", "/repo"]);
+  });
+
+  it("applies configured network allow rules after creating a sandbox", async () => {
+    const { spawnFn, calls } = fakeSpawn(() => ({ code: 0 }));
+    const provider = new SbxProvider({
+      createNetworkAllows: ["api.deepseek.com:443"],
+      spawnFn,
+    });
+    expect(await provider.create("t-C0-1.2", "/repo")).toEqual({ name: "t-C0-1.2" });
+    expect(calls[0]?.args).toEqual(["create", "--clone", "--name", "t-C0-1.2", "codex", "/repo"]);
+    expect(calls[1]?.args).toEqual([
+      "policy",
+      "allow",
+      "network",
+      "t-C0-1.2",
+      "api.deepseek.com:443",
+    ]);
   });
 
   it("create throws on non-zero exit, surfacing stderr", async () => {
@@ -146,6 +181,22 @@ describe("execShell + SandboxFsLike", () => {
       "bash",
       "-c",
       "find $HOME -name '*.jsonl' < /dev/null",
+    ]);
+  });
+
+  it("execShell passes env values through sbx exec", async () => {
+    const { spawnFn, calls } = fakeSpawn(() => ({ stdout: "" }));
+    const provider = new SbxProvider({ spawnFn });
+    await provider.execShell(handle, "env | sort", { env: { FOO: "bar" } });
+    expect(calls[0]?.args).toEqual([
+      "exec",
+      "-e",
+      "FOO=bar",
+      handle.name,
+      "--",
+      "bash",
+      "-c",
+      "env | sort < /dev/null",
     ]);
   });
 

@@ -44,6 +44,7 @@ class FakeSandbox {
   readonly existing: SandboxHandle[];
   failWrites = new Set<string>();
   execArgs: string[][] = [];
+  execEnvs: (Record<string, string> | undefined)[] = [];
   shellResults: ExecResult[] = [];
   shellCommands: string[] = [];
   constructor(
@@ -65,6 +66,7 @@ class FakeSandbox {
   async exec(_h: SandboxHandle, argv: string[], opts?: ExecCallOptions): Promise<ExecResult> {
     this.trace.push("exec");
     this.execArgs.push(argv);
+    this.execEnvs.push(opts?.env);
     this.lastCwd = opts?.cwd;
     opts?.onChunk?.("stdout", this.execResult.stdout);
     opts?.onChunk?.("stderr", this.execResult.stderr);
@@ -102,6 +104,7 @@ class FakeBackend implements CodingBackend {
     private readonly trace: string[],
     private readonly result: TurnResult,
     private readonly streamId: string | null = "sess-new",
+    private readonly env: Record<string, string> | undefined = undefined,
   ) {}
   configHome(): string {
     return "~/.codex";
@@ -109,6 +112,9 @@ class FakeBackend implements CodingBackend {
   turnArgs(message: string, sessionId?: string): string[] {
     this.turnArgsCalls.push(sessionId);
     return ["codex", "exec", ...(sessionId ? ["resume", sessionId] : []), message];
+  }
+  turnEnv(): Record<string, string> {
+    return this.env ?? {};
   }
   parseResult(): TurnResult {
     return this.result;
@@ -144,6 +150,7 @@ function build(opts: {
   seedFiles?: Record<string, string>;
   level?: "summary" | "verbose";
   provisionScript?: string;
+  turnEnv?: Record<string, string>;
 }): Built {
   const trace: string[] = [];
   const platform = new FakePlatform(
@@ -163,6 +170,7 @@ function build(opts: {
     trace,
     opts.result ?? { finalText: "Fixed it.", ok: true },
     opts.streamId === undefined ? "sess-new" : opts.streamId,
+    opts.turnEnv,
   );
   const sink = createRecordingSink();
   const dispatcher = new Dispatcher({
@@ -229,6 +237,14 @@ describe("dispatchTurn — turn 1 happy path", () => {
     const existing = build({ existing: [SANDBOX], provisionScript: "setup-agent" });
     await existing.dispatcher.dispatchTurn(trigger);
     expect(existing.sandbox.shellCommands).not.toContain("setup-agent");
+  });
+
+  it("passes backend env to the agent process without logging it", async () => {
+    const b = build({ turnEnv: { ANTHROPIC_API_KEY: "secret-value" } });
+    await b.dispatcher.dispatchTurn(trigger);
+
+    expect(b.sandbox.execEnvs).toEqual([{ ANTHROPIC_API_KEY: "secret-value" }]);
+    expect(JSON.stringify(b.sink.records)).not.toContain("secret-value");
   });
 
   it("falls back to captureSessionId when the stream has no id", async () => {

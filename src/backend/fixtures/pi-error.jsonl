@@ -1,0 +1,4 @@
+{"type":"session","version":3,"id":"019f2dc0-89bd-7ca1-a2d5-9bcb2d72e144","timestamp":"2026-06-04T00:00:00.000Z","cwd":"/home/agent/repo"}
+{"type":"agent_start"}
+{"type":"turn_start"}
+{"type":"turn_end","message":{"role":"assistant","stopReason":"error","content":[{"type":"text","text":"Missing provider API key"}]},"toolResults":[]}

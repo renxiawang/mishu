@@ -1,0 +1,2 @@
+1748600000.1234	/home/agent/.pi/agent/sessions/old.jsonl
+1748600100.5678	/home/agent/.pi/agent/sessions/019f2dc0-89bd-7ca1-a2d5-9bcb2d72e143.jsonl

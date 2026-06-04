@@ -27,6 +27,8 @@ export interface ExecCallOptions {
   stdin?: string;
   /** Working directory inside the sandbox (e.g. the provisioned repo clone). */
   cwd?: string;
+  /** Environment values injected into the process; never logged by the router. */
+  env?: Record<string, string>;
 }
 
 export interface SandboxProvider {

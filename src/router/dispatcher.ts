@@ -108,6 +108,7 @@ export class Dispatcher {
 
       const prompt = formatPrompt(delta);
       const argv = this.backend.turnArgs(prompt, sessionId ?? undefined);
+      const env = this.backend.turnEnv?.();
 
       const home = await this.sandbox.homeDir(handle);
       const repoPath = `${home}/${IN_VM_REPO_DIR}`;
@@ -126,6 +127,7 @@ export class Dispatcher {
       const start = this.now();
       const { stdout, stderr, exitCode } = await this.sandbox.exec(handle, argv, {
         cwd: repoPath,
+        env,
         onChunk: (stream, chunk) => {
           if (this.level === "verbose") {
             this.write(buildOutChunk(ctx, this.ts(), { stream, chunk }));
